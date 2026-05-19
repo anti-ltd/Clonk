@@ -1,0 +1,6 @@
+.DS_Store
+.build/
+build/
+Resources/AppIcon.icns
+*.xcodeproj
+.swiftpm/
