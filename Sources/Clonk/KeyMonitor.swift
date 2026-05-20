@@ -7,6 +7,7 @@ import CoreGraphics
 @MainActor
 final class KeyMonitor {
     var onKey: ((_ down: Bool, _ bigKey: Bool, _ modifier: Bool, _ keycode: Int) -> Void)?
+    var onKeyRepeat: ((_ keycode: Int) -> Void)?
     var onMouse: ((_ down: Bool, _ button: Int) -> Void)?
     var onScroll: ((_ dx: Double, _ dy: Double) -> Void)?
     private(set) var isRunning = false
@@ -64,8 +65,13 @@ final class KeyMonitor {
     }
 
     fileprivate func dispatchKey(down: Bool, autorepeat: Bool, keycode: Int64, modifier: Bool) {
-        guard !autorepeat else { return }
         let code = Int(keycode)
+        if autorepeat {
+            // Don't fire a sound for repeat events, but surface them so
+            // listeners can keep "held key" state alive.
+            onKeyRepeat?(code)
+            return
+        }
         onKey?(down, Self.bigKeycodes.contains(code), modifier, code)
     }
 
