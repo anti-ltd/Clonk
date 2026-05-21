@@ -70,7 +70,7 @@ Wide keycaps (space, return, shift, tab, delete) get a deeper voice. Every press
 
 Clonk ships **zero audio files** — but you can import your own. A *sample pack* is just a folder of audio files (`wav`, `aiff`, `caf`, `mp3`, `m4a`, `flac`).
 
-In the menu bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/Clonk/SamplePacks/`.
+In the menu bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/counter-ltd/clonk/SamplePacks/`.
 
 ---
 

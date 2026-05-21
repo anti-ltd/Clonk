@@ -5,7 +5,7 @@ import Foundation
 // instantly. The active profile ID is remembered across launches.
 //
 // Storage: one JSON file per profile under
-//   ~/Library/Application Support/Clonk/Profiles/<id>.json
+//   ~/Library/Application Support/counter-ltd/clonk/Profiles/<id>.json
 // Plus a sidecar "active" file holding the current ID.
 struct Profile: Codable, Identifiable, Equatable {
     var id: String
@@ -60,12 +60,9 @@ struct Profile: Codable, Identifiable, Equatable {
 @MainActor
 enum ProfileStore {
     static let directory: URL = {
-        let base = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("Clonk", isDirectory: true)
-            .appendingPathComponent("Profiles", isDirectory: true)
-        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        return base
+        let dir = Paths.appSupport.appendingPathComponent("Profiles", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }()
 
     private static let activeKey = "activeProfileID"

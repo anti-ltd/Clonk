@@ -21,13 +21,7 @@ final class StatsRecorder {
     private let url: URL
     private var saveTimer: Timer?
 
-    private static let fileURL: URL = {
-        let base = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("Clonk", isDirectory: true)
-        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-        return base.appendingPathComponent("stats.json")
-    }()
+    private static let fileURL = Paths.appSupport.appendingPathComponent("stats.json")
 
     init() {
         url = Self.fileURL
