@@ -8,17 +8,17 @@
 
 <br><br>
 
-<img src="Resources/icon.png" width="140" alt="Clonk">
+<img src="Resources/screenshots/app-icon.png" width="140" alt="Clonk">
 
 # Clonk
 
 **A mechanical keyboard sound simulator for your Mac.**
 
-![Platform](https://img.shields.io/badge/macOS-26%20Tahoe-black?style=flat-square)
-![Swift](https://img.shields.io/badge/Swift-6.3-orange?style=flat-square&logo=swift)
-[![License](https://img.shields.io/badge/license-CLL-blue?style=flat-square)](LICENSE.md)
+![Platform](https://img.shields.io/badge/macOS%2026%20Tahoe-black?style=flat-square)
+![Language](https://img.shields.io/badge/Swift%206.3-orange?style=flat-square&logo=swift)
+[![License](https://img.shields.io/badge/license-CLL%20v1.2-blue?style=flat-square)](LICENSE.md)
 
-5 synthesised switch voices · Key, mouse + scroll-wheel clicks · Release clicks · Import your own sample packs · Lives in the menu bar
+`type · click · thock · synth`
 
 </div>
 
@@ -106,14 +106,6 @@ make clean    # remove build artifacts
 
 Clonk lives entirely in the menu bar — click its icon for the popover with every setting, a sound playground, and the Accessibility prompt (System Settings › Privacy & Security › Accessibility). Grant it, and start typing.
 
----
+Codesigning uses a local `Clonk Dev` code-signing certificate if one exists in your keychain, otherwise it falls back to ad-hoc.
 
-## Releases
-
-Pushing to `main` builds the app and refreshes a rolling `latest` release via GitHub Actions. Pushing a `v*` tag publishes a versioned release.
-
----
-
-## License
-
-[Counter-Limitation License (CLL) v1.2](LICENSE.md) — free for individuals, learners, educators, researchers, artists, and small communities. Not for large corporations or profit extraction.
+Clonk needs **Accessibility** access for its keyboard event tap. macOS ties that grant to the app's signing identity, and an ad-hoc signature changes on every rebuild — so you'd have to re-grant after each build. To make the grant stick, create a reusable self-signed `Clonk Dev` certificate once (Keychain Access → Certificate Assistant → Create a Certificate → type *Code Signing*); `make app` / `make run` pick it up automatically.
