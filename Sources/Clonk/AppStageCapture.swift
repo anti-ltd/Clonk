@@ -14,15 +14,32 @@ import SwiftUI
 // appstage then runs `screencapture -l<window> -o` and terminates the process.
 @MainActor
 enum AppStageCapture {
-    static func run(state: String, model: AppModel) {
-        // Menu-bar style (no Dock icon), forced light for consistent shots.
-        NSApp.setActivationPolicy(.accessory)
-        NSApp.appearance = NSAppearance(named: .aqua)
+    // Overlay states rendered as a small floating widget (not the popover).
+    private static let overlayStates: Set<String> = ["wpm", "keyboard", "piano", "minimal"]
 
+    static func run(state: String, model: AppModel) {
+        NSApp.setActivationPolicy(.accessory)
         seed(model, for: state)
 
-        let tab: PopoverTab = state == "settings" ? .settings : .sounds
-        let host = NSHostingController(rootView: CapturePanel(model: model, tab: tab))
+        let root: AnyView
+        if overlayStates.contains(state) {
+            // Dark mode: overlays are always dark-styled floating panels.
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+            root = AnyView(CaptureOverlay(model: model, state: state))
+        } else {
+            // Popover: force light for consistent shots.
+            NSApp.appearance = NSAppearance(named: .aqua)
+            let tab: PopoverTab
+            switch state {
+            case "settings":  tab = .settings
+            case "profiles":  tab = .profiles
+            case "triggers":  tab = .triggers
+            default:          tab = .sounds
+            }
+            root = AnyView(CapturePanel(model: model, tab: tab))
+        }
+
+        let host = NSHostingController(rootView: root)
         host.view.layoutSubtreeIfNeeded()
 
         let window = CaptureWindow(
@@ -34,13 +51,12 @@ enum AppStageCapture {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        window.level = .floating // keep above other windows for the capture
+        window.level = .floating
         window.contentViewController = host
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Let SwiftUI lay out and paint, then size to content.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             host.view.layoutSubtreeIfNeeded()
             let fit = host.view.fittingSize
@@ -48,8 +64,6 @@ enum AppStageCapture {
                 window.setContentSize(fit)
                 window.center()
             }
-            // Re-assert active/key so controls render in their active (accent)
-            // state, not the desaturated inactive state, when captured.
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
 
@@ -73,11 +87,23 @@ enum AppStageCapture {
         model.scrollSoundEnabled = true
         model.muteModifiers = false
         model.scrollSensitivity = 0.16
-        if state == "sounds" {
-            // Show the per-input advanced editors (keyboard grid, etc.).
+        switch state {
+        case "sounds":
             model.keyboardAdvancedEnabled = true
             model.mouseAdvancedEnabled = true
             model.scrollAdvancedEnabled = true
+        case "wpm":
+            model.seedOverlayState(wpm: 85)
+        case "keyboard":
+            model.keyVizStyle = .full
+            model.seedOverlayState(wpm: 0, pressedKeycodes: [38, 40, 37])
+        case "piano":
+            model.pianoModeEnabled = true
+            model.seedOverlayState(wpm: 0, pressedKeycodes: [0, 2, 4, 7, 9])
+        case "minimal":
+            model.keyVizStyle = .minimal
+            model.seedOverlayState(wpm: 0, pressedKeycodes: [31, 34, 32])
+        default: break
         }
     }
 }
@@ -98,6 +124,33 @@ private struct CapturePanel: View {
         PopoverView(model: model, initialTab: tab)
             .background(Color(nsColor: .windowBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+// The overlay widget (WPM, key viz, piano) rendered standalone with
+// transparent surround so the capture follows the widget's own shape.
+private struct CaptureOverlay: View {
+    let model: AppModel
+    let state: String
+
+    var body: some View {
+        Group {
+            switch state {
+            case "wpm":
+                WPMVisualizerView(model: model)
+                    .padding(16)
+            case "piano":
+                KeyVisualizerView(model: model)
+                    .padding(16)
+            case "minimal":
+                KeyVisualizerView(model: model)
+                    .padding(24)
+            default: // "keyboard"
+                KeyVisualizerView(model: model)
+                    .padding(12)
+            }
+        }
+        .environment(\.colorScheme, .dark)
     }
 }
 #endif

@@ -667,6 +667,28 @@ final class AppModel {
         }
     }
 
+    #if APPSTAGE
+    // Seed visual-only state for overlay screenshots without running the live
+    // input pipeline (which requires Accessibility permission).
+    func seedOverlayState(wpm: Double = 85, pressedKeycodes: [Int] = [38, 40, 37]) {
+        let wave: [Double] = stride(from: 0, to: 80, by: 1).map { i in
+            let t = Double(i) / 79.0
+            return max(0, wpm * (0.65 + sin(t * .pi * 4.5) * 0.22 + Double.random(in: -0.06...0.06)))
+        }
+        wpmHistory = wave
+        currentWPM = wpm
+        pressedKeys = Set(pressedKeycodes)
+        let now = Date()
+        recentKeyEvents = pressedKeycodes.enumerated().map { idx, code in
+            KeyPressEvent(
+                keycode: code,
+                label: KeyboardLayout.name(for: code),
+                pressedAt: now.addingTimeInterval(-Double(idx) * 0.04)
+            )
+        }
+    }
+    #endif
+
     private func refreshWPMViz() {
         if active.wpmVizEnabled {
             if wpmVizWindow == nil {
