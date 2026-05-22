@@ -9,19 +9,18 @@ struct PopoverView: View {
     @State private var importError: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            GlassEffectContainer {
-                GlassTabBar(selection: $tab)
+        VStack(alignment: .leading, spacing: 0) {
+            Picker("", selection: $tab) {
+                ForEach(PopoverTab.allCases) { Text($0.title).tag($0) }
             }
-            .padding(.top, 12)
-            .padding(.bottom, 10)
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.bottom, 12)
 
             tabContent
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
         }
+        .padding(16)
         .frame(width: 460)
-        .background(.regularMaterial)
         .onExitCommand { NSApp.keyWindow?.close() }
         .alert("Import Failed", isPresented: Binding(
             get: { importError != nil },
@@ -916,7 +915,7 @@ private struct CardSection<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             if let title {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
@@ -924,13 +923,7 @@ private struct CardSection<Content: View>: View {
                     .padding(.horizontal, 4)
             }
             VStack(alignment: .leading, spacing: 0) { content }
-                .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(.white.opacity(0.08), lineWidth: 1)
-                )
         }
     }
 }
@@ -946,7 +939,7 @@ private struct VolumeRow: View {
             Text("\(Int(value * 100))%")
                 .monospacedDigit().frame(width: 42, alignment: .trailing)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 10)
     }
 }
 
@@ -966,22 +959,31 @@ struct PlayButton: View {
 
 private struct ToggleRow: View {
     let label: String
+    let subtitle: String?
     @Binding var isOn: Bool
 
-    init(_ label: String, isOn: Binding<Bool>) {
+    init(_ label: String, subtitle: String? = nil, isOn: Binding<Bool>) {
         self.label = label
+        self.subtitle = subtitle
         self._isOn = isOn
     }
 
     var body: some View {
         HStack {
-            Text(label)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             Spacer()
             Toggle("", isOn: $isOn)
                 .toggleStyle(.switch)
                 .labelsHidden()
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 10)
     }
 }
 
@@ -1010,36 +1012,5 @@ enum PopoverTab: String, CaseIterable, Identifiable {
         case .stats: return "chart.bar"
         case .about: return "info.circle"
         }
-    }
-}
-
-// Liquid-glass segmented tab bar.
-private struct GlassTabBar: View {
-    @Binding var selection: PopoverTab
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(PopoverTab.allCases) { tab in
-                let selected = selection == tab
-                Button {
-                    withAnimation(.snappy(duration: 0.22)) { selection = tab }
-                } label: {
-                    Image(systemName: tab.icon)
-                        .font(.callout.weight(.medium))
-                        .frame(width: 30, height: 26)
-                        .foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                        .background {
-                            if selected {
-                                Capsule().fill(.tint.opacity(0.20))
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .help(tab.title)
-            }
-        }
-        .padding(4)
-        .glassEffect(.regular.interactive(), in: .capsule)
     }
 }
