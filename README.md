@@ -17,6 +17,8 @@
 ![Platform](https://img.shields.io/badge/macOS%2026%20Tahoe-black?style=flat-square)
 ![Language](https://img.shields.io/badge/Swift%206.3-orange?style=flat-square&logo=swift)
 [![License](https://img.shields.io/badge/license-CLL%20v1.2-blue?style=flat-square)](LICENSE.md)
+![Bundle](https://img.shields.io/badge/bundle-1.5%20MB-brightgreen?style=flat-square)
+![CPU](https://img.shields.io/badge/idle%20CPU-%3C0.1%25-brightgreen?style=flat-square)
 
 `type · click · thock · synth`
 
@@ -28,6 +30,14 @@
 
 ---
 
+## Screenshots
+
+<div align="center">
+<img src="Resources/screenshots/settings-framed.png" width="380" alt="Settings"> <img src="Resources/screenshots/sounds-framed.png" width="380" alt="Sounds">
+</div>
+
+---
+
 ## What it is
 
 Clonk gives every keystroke a satisfying mechanical click. It sits in the menu bar, listens for keys and mouse clicks, and plays a sound — and **every sound is generated live by DSP. There are no audio files in the app.**
@@ -35,12 +45,6 @@ Clonk gives every keystroke a satisfying mechanical click. It sits in the menu b
 A keypress is a short noise burst (the switch impact) driving two bandpass *resonators* (the keycap, plate and case body), summed with a bright high-passed *transient* (the contact click). Resonated noise reads as a real "thock" — not a musical tone. Each voice is a different recipe of those parameters in [`Theme.swift`](Sources/Clonk/Theme.swift).
 
 Built natively in Swift for macOS Tahoe — menu-bar agent, no Dock icon.
-
-<div align="center">
-
-<img src="Resources/screenshots/settings-framed.png" width="320" alt="Settings"> <img src="Resources/screenshots/sounds-framed.png" width="320" alt="Sounds">
-
-</div>
 
 ---
 
