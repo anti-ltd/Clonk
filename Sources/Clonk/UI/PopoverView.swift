@@ -5,8 +5,13 @@ import SwiftUI
 // to whichever tab is open.
 struct PopoverView: View {
     @Bindable var model: AppModel
-    @State private var tab: PopoverTab = .sounds
+    @State private var tab: PopoverTab
     @State private var importError: String?
+
+    init(model: AppModel, initialTab: PopoverTab? = nil) {
+        self._model = Bindable(wrappedValue: model)
+        self._tab = State(initialValue: initialTab ?? .sounds)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

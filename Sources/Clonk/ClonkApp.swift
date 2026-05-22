@@ -33,6 +33,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // appstage screenshot mode: render one UI state on-screen and wait to be
+        // captured. Skips the status item and the live key/sound engine. Compiled
+        // in only for appstage capture builds (-DAPPSTAGE); absent from releases.
+        #if APPSTAGE
+        if let idx = args.firstIndex(of: "--appstage"), idx + 1 < args.count {
+            AppStageCapture.run(state: args[idx + 1], model: model)
+            return
+        }
+        #endif
+
         installStatusItem()
         model.start()
     }
