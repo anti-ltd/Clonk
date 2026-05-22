@@ -38,7 +38,7 @@ Built natively in Swift for macOS Tahoe — menu-bar agent, no Dock icon.
 
 <div align="center">
 
-<img src="Resources/screenshots/settings.jpeg" width="380" alt="Settings tab"> <img src="Resources/screenshots/sounds.jpeg" width="380" alt="Sounds tab">
+<img src="Resources/screenshots/settings-framed.png" width="320" alt="Settings"> <img src="Resources/screenshots/sounds-framed.png" width="320" alt="Sounds">
 
 </div>
 
