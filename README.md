@@ -8,23 +8,37 @@
 
 <br><br>
 
-<img src="Resources/icon.png" width="140" alt="Clonk">
+<img src="Resources/screenshots/app-icon.png" width="140" alt="Clonk">
 
 # Clonk
 
 **A mechanical keyboard sound simulator for your Mac.**
 
-![Platform](https://img.shields.io/badge/macOS-26%20Tahoe-black?style=flat-square)
-![Swift](https://img.shields.io/badge/Swift-6.3-orange?style=flat-square&logo=swift)
-[![License](https://img.shields.io/badge/license-CLL-blue?style=flat-square)](LICENSE.md)
+![Platform](https://img.shields.io/badge/macOS%2026%20Tahoe-black?style=flat-square)
+![Language](https://img.shields.io/badge/Swift%206.3-orange?style=flat-square&logo=swift)
+[![License](https://img.shields.io/badge/license-CLL%20v1.2-blue?style=flat-square)](LICENSE.md)
+![Bundle](https://img.shields.io/badge/bundle-1.5%20MB-brightgreen?style=flat-square)
+![CPU](https://img.shields.io/badge/idle%20CPU-%3C0.1%25-brightgreen?style=flat-square)
 
-5 synthesised switch voices · Key, mouse + scroll-wheel clicks · Release clicks · Import your own sample packs · Lives in the menu bar
+`type · click · thock · synth`
 
 </div>
 
 ---
 
 > Inspired by [FunKey](https://apps.apple.com/us/app/funkey-mechanical-keyboard-app/id6469420677?mt=12) — a fun idea. This is the free, open-source alternative.
+
+---
+
+## Screenshots
+
+<div align="center">
+<img src="Resources/screenshots/settings-framed.png" width="380" alt="Settings — press, release and scroll sounds with per-channel volumes"> <img src="Resources/screenshots/sounds-framed.png" width="380" alt="Sounds — per-key voice overrides and a live playground">
+</div>
+
+<div align="center">
+<img src="Resources/screenshots/profiles-framed.png" width="380" alt="Profiles — keep multiple sound sets and switch between them in a click"> <img src="Resources/screenshots/triggers-framed.png" width="380" alt="Sleep — auto-mute rules for battery, hours, idle, front app and more">
+</div>
 
 ---
 
@@ -35,12 +49,6 @@ Clonk gives every keystroke a satisfying mechanical click. It sits in the menu b
 A keypress is a short noise burst (the switch impact) driving two bandpass *resonators* (the keycap, plate and case body), summed with a bright high-passed *transient* (the contact click). Resonated noise reads as a real "thock" — not a musical tone. Each voice is a different recipe of those parameters in [`Theme.swift`](Sources/Clonk/Theme.swift).
 
 Built natively in Swift for macOS Tahoe — menu-bar agent, no Dock icon.
-
-<div align="center">
-
-<img src="Resources/screenshots/settings.jpeg" width="380" alt="Settings tab"> <img src="Resources/screenshots/sounds.jpeg" width="380" alt="Sounds tab">
-
-</div>
 
 ---
 
@@ -70,7 +78,36 @@ Wide keycaps (space, return, shift, tab, delete) get a deeper voice. Every press
 
 Clonk ships **zero audio files** — but you can import your own. A *sample pack* is just a folder of audio files (`wav`, `aiff`, `caf`, `mp3`, `m4a`, `flac`).
 
-In the menu bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/Clonk/SamplePacks/`.
+In the menu bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/counter-ltd/clonk/SamplePacks/`.
+
+---
+
+## On-screen overlays
+
+Optional floating widgets that visualise what you type — drag them anywhere, or leave them off. Each is a transparent, draggable panel that floats above your work without stealing focus.
+
+<div align="center">
+<img src="Resources/screenshots/keyboard.png" width="440" alt="Full keyboard overlay — keys light up as you press them"><br>
+<sub><b>Keyboard</b> — a floating layout that lights up with every press.</sub>
+</div>
+
+<div align="center">
+<img src="Resources/screenshots/minimal.png" width="300" alt="Minimal overlay — only the keys you're pressing, fading out"> &nbsp;&nbsp; <img src="Resources/screenshots/wpm.png" width="300" alt="WPM overlay — a live words-per-minute counter and sparkline"><br>
+<sub><b>Minimal</b> — just the keys you're pressing, then they fade. &nbsp;·&nbsp; <b>WPM</b> — a live words-per-minute counter and sparkline.</sub>
+</div>
+
+<div align="center">
+<img src="Resources/screenshots/piano.png" width="600" alt="Piano mode — keys mapped to notes across a full keyboard"><br>
+<sub><b>Piano</b> — map your keys to notes and play any app like an instrument.</sub>
+</div>
+
+---
+
+## Profiles & quiet hours
+
+**Profiles** keep a whole sound set under one name — a soft linear for writing, a sharp clicky blue for chat, your own sample pack for fun. Each profile remembers every setting (voices, volumes, overrides, overlays), and you switch between them in a click from the popover.
+
+**Sleep rules** mute Clonk on their own when you don't want it. Mix and match conditions — on battery or low battery, within set hours, when a particular app is in front, while you're idle, on an external keyboard, during a calendar event, or with multiple displays attached. Set them once and forget them.
 
 ---
 
@@ -106,14 +143,6 @@ make clean    # remove build artifacts
 
 Clonk lives entirely in the menu bar — click its icon for the popover with every setting, a sound playground, and the Accessibility prompt (System Settings › Privacy & Security › Accessibility). Grant it, and start typing.
 
----
+Codesigning uses a local `Clonk Dev` code-signing certificate if one exists in your keychain, otherwise it falls back to ad-hoc.
 
-## Releases
-
-Pushing to `main` builds the app and refreshes a rolling `latest` release via GitHub Actions. Pushing a `v*` tag publishes a versioned release.
-
----
-
-## License
-
-[Counter-Limitation License (CLL) v1.2](LICENSE.md) — free for individuals, learners, educators, researchers, artists, and small communities. Not for large corporations or profit extraction.
+Clonk needs **Accessibility** access for its keyboard event tap. macOS ties that grant to the app's signing identity, and an ad-hoc signature changes on every rebuild — so you'd have to re-grant after each build. To make the grant stick, create a reusable self-signed `Clonk Dev` certificate once (Keychain Access → Certificate Assistant → Create a Certificate → type *Code Signing*); `make app` / `make run` pick it up automatically.

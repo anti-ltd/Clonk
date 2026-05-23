@@ -26,5 +26,9 @@
 	<string>NSApplication</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Clonk</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Clonk reads your Calendar to pause clicks during meetings. Events are read only — nothing is sent or stored.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Clonk reads your Calendar to pause clicks during meetings. Events are read only — nothing is sent or stored.</string>
 </dict>
 </plist>

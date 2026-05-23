@@ -80,6 +80,51 @@ extension Theme {
               clickGain: 0.95, clickDecay: 0.010, clickHighpass: 3000,
               totalDecay: 0.12, releaseGain: 0.55, releaseBright: 1.5,
               gain: 0.95, pitchJitter: 0.10),
+
+        // Creamy linear — rounded mid-low body, no click, lubed feel.
+        Theme(id: "creamy", name: "Creamy Linear",
+              exciteDecay: 0.011,
+              res1Freq: 140, res1Q: 2.4, res1Gain: 0.85,
+              res2Freq: 820, res2Q: 2.6, res2Gain: 0.28,
+              clickGain: 0.10, clickDecay: 0.007, clickHighpass: 1300,
+              totalDecay: 0.085, releaseGain: 0.30, releaseBright: 1.2,
+              gain: 0.88, pitchJitter: 0.05),
+
+        // Marble plate — high resonant ping over a tight body, glassy.
+        Theme(id: "marble", name: "Marble Plate",
+              exciteDecay: 0.0035,
+              res1Freq: 280, res1Q: 2.8, res1Gain: 0.40,
+              res2Freq: 4200, res2Q: 11.0, res2Gain: 0.50,
+              clickGain: 0.80, clickDecay: 0.005, clickHighpass: 3800,
+              totalDecay: 0.06, releaseGain: 0.45, releaseBright: 1.45,
+              gain: 0.85, pitchJitter: 0.09),
+
+        // Hollow case — boxy, low-mid emphasis like an un-foamed board.
+        Theme(id: "hollow", name: "Hollow Case",
+              exciteDecay: 0.014,
+              res1Freq: 95, res1Q: 1.8, res1Gain: 1.0,
+              res2Freq: 540, res2Q: 5.0, res2Gain: 0.55,
+              clickGain: 0.28, clickDecay: 0.011, clickHighpass: 1200,
+              totalDecay: 0.135, releaseGain: 0.42, releaseBright: 1.25,
+              gain: 0.92, pitchJitter: 0.06),
+
+        // Paper / cardboard — soft, dry, no resonance, low click.
+        Theme(id: "paper", name: "Cardboard",
+              exciteDecay: 0.0025,
+              res1Freq: 220, res1Q: 1.4, res1Gain: 0.35,
+              res2Freq: 900, res2Q: 1.8, res2Gain: 0.20,
+              clickGain: 0.20, clickDecay: 0.004, clickHighpass: 900,
+              totalDecay: 0.035, releaseGain: 0.25, releaseBright: 1.15,
+              gain: 0.75, pitchJitter: 0.11),
+
+        // Glass tap — short, very bright, high-pitched ping.
+        Theme(id: "glass", name: "Glass Tap",
+              exciteDecay: 0.002,
+              res1Freq: 380, res1Q: 4.0, res1Gain: 0.25,
+              res2Freq: 5200, res2Q: 18.0, res2Gain: 0.45,
+              clickGain: 0.90, clickDecay: 0.0035, clickHighpass: 4500,
+              totalDecay: 0.045, releaseGain: 0.40, releaseBright: 1.6,
+              gain: 0.80, pitchJitter: 0.12),
     ]
 
     static let defaultID = "tactile"

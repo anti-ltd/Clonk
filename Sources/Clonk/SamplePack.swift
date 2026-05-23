@@ -16,8 +16,7 @@ enum SamplePackStore {
     static let audioExtensions: Set<String> = ["wav", "aiff", "aif", "caf", "mp3", "m4a", "flac"]
 
     static var packsDirectory: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("Clonk/SamplePacks", isDirectory: true)
+        let dir = Paths.appSupport.appendingPathComponent("SamplePacks", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
