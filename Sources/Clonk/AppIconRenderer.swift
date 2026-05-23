@@ -1,4 +1,13 @@
 import AppKit
+import SwiftUI
+
+// Shared icon geometry across all of our apps: a full-bleed continuous-corner
+// "squircle" — the exact shape SwiftUI's RoundedRectangle(.continuous) produces,
+// so every app icon (incl. fileden / luminescent-clock) reads with the same corner.
+func iconSquircle(_ rect: CGRect, ratio: CGFloat = 0.2237) -> CGPath {
+    RoundedRectangle(cornerRadius: min(rect.width, rect.height) * ratio, style: .continuous)
+        .path(in: rect).cgPath
+}
 
 // Draws the app icon procedurally into an .iconset folder.
 // Invoked by `make icon` via the `--icon <dir>` command-line flag.
@@ -43,13 +52,9 @@ enum AppIconRenderer {
             CGColor(red: r, green: g, blue: b, alpha: a)
         }
 
-        // ── Background squircle ──────────────────────────────────────────
-        // macOS icon grid: artwork fills a rounded square inset from the canvas.
-        let inset = size * 0.092
-        let rect = CGRect(x: inset, y: inset, width: size - inset * 2, height: size - inset * 2)
-        let bgRadius = rect.width * 0.2237   // Apple "squircle" continuous-corner ratio
-        let bg = CGPath(roundedRect: rect, cornerWidth: bgRadius,
-                        cornerHeight: bgRadius, transform: nil)
+        // ── Background squircle (full-bleed, shared geometry) ────────────
+        let rect = CGRect(x: 0, y: 0, width: size, height: size)
+        let bg = iconSquircle(rect)
 
         cg.saveGState()
         cg.addPath(bg)

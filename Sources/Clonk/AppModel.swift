@@ -670,7 +670,12 @@ final class AppModel {
     #if APPSTAGE
     // Seed visual-only state for overlay screenshots without running the live
     // input pipeline (which requires Accessibility permission).
-    func seedOverlayState(wpm: Double = 85, pressedKeycodes: [Int] = [38, 40, 37]) {
+    func seedOverlayState(
+        wpm: Double = 85,
+        pressedKeycodes: [Int] = [38, 40, 37],
+        fadingKeys: [(keycode: Int, progress: Double)] = [],
+        captureDelay: Double = 1.30
+    ) {
         let wave: [Double] = stride(from: 0, to: 80, by: 1).map { i in
             let t = Double(i) / 79.0
             return max(0, wpm * (0.65 + sin(t * .pi * 4.5) * 0.22 + Double.random(in: -0.06...0.06)))
@@ -679,13 +684,27 @@ final class AppModel {
         currentWPM = wpm
         pressedKeys = Set(pressedKeycodes)
         let now = Date()
-        recentKeyEvents = pressedKeycodes.enumerated().map { idx, code in
+        var events: [KeyPressEvent] = pressedKeycodes.enumerated().map { idx, code in
             KeyPressEvent(
                 keycode: code,
                 label: KeyboardLayout.name(for: code),
                 pressedAt: now.addingTimeInterval(-Double(idx) * 0.04)
             )
         }
+        // Fade duration must match MinimalKeyOverlay.fade (0.9s).
+        // releasedAt offset = captureDelay - progress * fadeDuration
+        // so that timeIntervalSince(releasedAt) == progress * fadeDuration at capture time.
+        let fadeDuration = 0.9
+        for (code, progress) in fadingKeys {
+            let p = max(0, min(0.99, progress))
+            events.append(KeyPressEvent(
+                keycode: code,
+                label: KeyboardLayout.name(for: code),
+                pressedAt: now.addingTimeInterval(-0.12),
+                releasedAt: now.addingTimeInterval(captureDelay - p * fadeDuration)
+            ))
+        }
+        recentKeyEvents = events
     }
     #endif
 

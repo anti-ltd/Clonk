@@ -87,9 +87,9 @@ struct KeyVisualizerView: View {
 }
 
 // Minimal overlay: shows only the keys currently pressed and a brief
-// fade-out trail for ones just released. A faint always-visible
-// backdrop pill gives the user something to grab when no keys are
-// down, so the window stays draggable.
+// fade-out trail for ones just released. The backdrop pill appears on
+// hover only — it's the grab handle for dragging the window. The rest
+// of the time the chips float bare, as a pure visualizer.
 private struct MinimalKeyOverlay: View {
     let model: AppModel
     @State private var hovering = false
@@ -105,7 +105,10 @@ private struct MinimalKeyOverlay: View {
         let allEvents = model.recentKeyEvents
         let events = Array(allEvents.suffix(Self.maxVisible))
         let idle = events.isEmpty
-        let showBackdrop = hovering || !idle
+        // In minimal mode the pill is only a grab handle / affordance —
+        // show it on hover only. When keys are flowing it stays hidden so
+        // the chips read as a pure visualizer.
+        let showBackdrop = hovering
         // Only run the timeline while there's a fading chip — pressed
         // chips are static, no per-frame redraw needed.
         let needsTimeline = events.contains { $0.releasedAt != nil }

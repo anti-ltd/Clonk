@@ -102,7 +102,16 @@ enum AppStageCapture {
             model.seedOverlayState(wpm: 0, pressedKeycodes: [0, 2, 4, 7, 9])
         case "minimal":
             model.keyVizStyle = .minimal
-            model.seedOverlayState(wpm: 0, pressedKeycodes: [31, 34, 32])
+            model.seedOverlayState(
+                wpm: 0,
+                pressedKeycodes: [15],           // R — still held
+                fadingKeys: [
+                    (keycode: 14, progress: 0.20), // E — just released, ~80% visible
+                    (keycode: 17, progress: 0.45), // T — ~55% visible
+                    (keycode: 1,  progress: 0.65), // S — ~35% visible
+                    (keycode: 0,  progress: 0.84), // A — nearly gone, ~16% visible
+                ]
+            )
         default: break
         }
     }
