@@ -109,20 +109,23 @@ struct KeyboardEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(KeyboardLayout.rows.enumerated()), id: \.offset) { _, row in
-                HStack(spacing: CGFloat(capGap)) {
-                    ForEach(row) { key in
-                        KeyCapView(
-                            key: key,
-                            isOverridden: model.advanced.keys[key.keycode] != nil,
-                            isSelected: selected == key.keycode,
-                            isPressed: model.pressedKeys.contains(key.keycode)
-                        ) {
-                            selected = (selected == key.keycode) ? nil : key.keycode
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(Array(KeyboardLayout.rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: CGFloat(capGap)) {
+                        ForEach(row) { key in
+                            KeyCapView(
+                                key: key,
+                                isOverridden: model.advanced.keys[key.keycode] != nil,
+                                isSelected: selected == key.keycode,
+                                isPressed: model.pressedKeys.contains(key.keycode)
+                            ) {
+                                selected = (selected == key.keycode) ? nil : key.keycode
+                            }
                         }
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
 
             if let code = selected {
                 KeyAssignmentEditor(model: model, keycode: code) {

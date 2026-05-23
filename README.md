@@ -33,7 +33,11 @@
 ## Screenshots
 
 <div align="center">
-<img src="Resources/screenshots/settings-framed.png" width="380" alt="Settings"> <img src="Resources/screenshots/sounds-framed.png" width="380" alt="Sounds">
+<img src="Resources/screenshots/settings-framed.png" width="380" alt="Settings — press, release and scroll sounds with per-channel volumes"> <img src="Resources/screenshots/sounds-framed.png" width="380" alt="Sounds — per-key voice overrides and a live playground">
+</div>
+
+<div align="center">
+<img src="Resources/screenshots/profiles-framed.png" width="380" alt="Profiles — keep multiple sound sets and switch between them in a click"> <img src="Resources/screenshots/triggers-framed.png" width="380" alt="Sleep — auto-mute rules for battery, hours, idle, front app and more">
 </div>
 
 ---
@@ -75,6 +79,35 @@ Wide keycaps (space, return, shift, tab, delete) get a deeper voice. Every press
 Clonk ships **zero audio files** — but you can import your own. A *sample pack* is just a folder of audio files (`wav`, `aiff`, `caf`, `mp3`, `m4a`, `flac`).
 
 In the menu bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/counter-ltd/clonk/SamplePacks/`.
+
+---
+
+## On-screen overlays
+
+Optional floating widgets that visualise what you type — drag them anywhere, or leave them off. Each is a transparent, draggable panel that floats above your work without stealing focus.
+
+<div align="center">
+<img src="Resources/screenshots/keyboard.png" width="440" alt="Full keyboard overlay — keys light up as you press them"><br>
+<sub><b>Keyboard</b> — a floating layout that lights up with every press.</sub>
+</div>
+
+<div align="center">
+<img src="Resources/screenshots/minimal.png" width="300" alt="Minimal overlay — only the keys you're pressing, fading out"> &nbsp;&nbsp; <img src="Resources/screenshots/wpm.png" width="300" alt="WPM overlay — a live words-per-minute counter and sparkline"><br>
+<sub><b>Minimal</b> — just the keys you're pressing, then they fade. &nbsp;·&nbsp; <b>WPM</b> — a live words-per-minute counter and sparkline.</sub>
+</div>
+
+<div align="center">
+<img src="Resources/screenshots/piano.png" width="600" alt="Piano mode — keys mapped to notes across a full keyboard"><br>
+<sub><b>Piano</b> — map your keys to notes and play any app like an instrument.</sub>
+</div>
+
+---
+
+## Profiles & quiet hours
+
+**Profiles** keep a whole sound set under one name — a soft linear for writing, a sharp clicky blue for chat, your own sample pack for fun. Each profile remembers every setting (voices, volumes, overrides, overlays), and you switch between them in a click from the popover.
+
+**Sleep rules** mute Clonk on their own when you don't want it. Mix and match conditions — on battery or low battery, within set hours, when a particular app is in front, while you're idle, on an external keyboard, during a calendar event, or with multiple displays attached. Set them once and forget them.
 
 ---
 

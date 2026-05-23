@@ -87,11 +87,43 @@ enum AppStageCapture {
         model.scrollSoundEnabled = true
         model.muteModifiers = false
         model.scrollSensitivity = 0.16
+        // Each shot is a fresh process, but appstage points every shot at one
+        // shared CLONK_STATE_DIR — so a field set by an earlier shot (e.g. the
+        // piano shot's pianoModeEnabled) persists into later ones. Reset the
+        // overlay-defining fields here so seeding is deterministic and
+        // order-independent; each case below opts back in to what it needs.
+        model.pianoModeEnabled = false
+        model.keyVizStyle = .full
         switch state {
         case "sounds":
             model.keyboardAdvancedEnabled = true
             model.mouseAdvancedEnabled = true
             model.scrollAdvancedEnabled = true
+        case "profiles":
+            // Stock the switcher with a believable set so the dropdown isn't
+            // just "Default". These persist only in the isolated capture store.
+            for name in ["Coding", "Gaming", "Streaming", "Writing"] {
+                ProfileStore.save(Profile(id: ProfileStore.newID(), name: name))
+            }
+            model.reloadProfiles()
+            if let writing = model.profiles.first(where: { $0.name == "Writing" }) {
+                model.switchProfile(to: writing.id)
+            }
+        case "triggers":
+            // A representative spread of sleep rules so the tab shows real
+            // content instead of the empty state.
+            model.triggersConfig = TriggersConfig(
+                enabled: true,
+                rules: [
+                    TriggerRule(name: "On battery", kind: .onBattery),
+                    TriggerRule(
+                        name: "Work hours",
+                        kind: .schedule(startMinute: 9 * 60, endMinute: 17 * 60, weekdays: [])
+                    ),
+                    TriggerRule(name: "On a call", kind: .appFocus(bundleIDs: ["us.zoom.xos"])),
+                    TriggerRule(name: "When idle", enabled: false, kind: .idle(seconds: 300)),
+                ]
+            )
         case "wpm":
             model.seedOverlayState(wpm: 85)
         case "keyboard":
