@@ -1,8 +1,10 @@
 import AppKit
 import SwiftUI
+import iUX
 
 // The menu bar popover — Clonk's whole UI. The popover sizes its height
-// to whichever tab is open.
+// to whichever tab is open. Chrome (tab bar, width, padding, cards, rows) comes
+// from iUX so it matches every other app; only the per-tab content lives here.
 struct PopoverView: View {
     @Bindable var model: AppModel
     @State private var tab: PopoverTab
@@ -14,19 +16,9 @@ struct PopoverView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Picker("", selection: $tab) {
-                ForEach(PopoverTab.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.bottom, 12)
-
+        SettingsPopover(selection: $tab) { _ in
             tabContent
         }
-        .padding(16)
-        .frame(width: 460)
-        .onExitCommand { NSApp.keyWindow?.close() }
         .alert("Import Failed", isPresented: Binding(
             get: { importError != nil },
             set: { if !$0 { importError = nil } }
@@ -78,13 +70,13 @@ struct PopoverView: View {
                 .disabled(!model.scrollSoundEnabled)
             }
             CardSection("Volume") {
-                VolumeRow(label: "Master", value: $model.volume)
+                SliderRow.percent("Master", value: $model.volume)
                 Divider()
-                VolumeRow(label: "Keyboard", value: $model.keyVolume)
+                SliderRow.percent("Keyboard", value: $model.keyVolume)
                 Divider()
-                VolumeRow(label: "Mouse", value: $model.mouseVolume)
+                SliderRow.percent("Mouse", value: $model.mouseVolume)
                 Divider()
-                VolumeRow(label: "Scroll", value: $model.scrollVolume)
+                SliderRow.percent("Scroll", value: $model.scrollVolume)
             }
             SpatialSection(model: model)
             VisualizersSection(model: model)
@@ -908,93 +900,9 @@ private struct DailyBarChart: View {
     }
 }
 
-// MARK: - Building blocks
-
-private struct CardSection<Content: View>: View {
-    let title: String?
-    @ViewBuilder var content: Content
-
-    init(_ title: String?, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let title {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-            }
-            VStack(alignment: .leading, spacing: 0) { content }
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct VolumeRow: View {
-    let label: String
-    @Binding var value: Double
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Text(label).frame(width: 72, alignment: .leading)
-            Slider(value: $value, in: 0...1)
-            Text("\(Int(value * 100))%")
-                .monospacedDigit().frame(width: 42, alignment: .trailing)
-        }
-        .padding(.vertical, 10)
-    }
-}
-
-struct PlayButton: View {
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "play.circle.fill")
-                .font(.system(size: 24))
-                .foregroundStyle(.tint)
-                .symbolRenderingMode(.hierarchical)
-        }
-        .buttonStyle(.plain)
-        .help("Preview")
-    }
-}
-
-private struct ToggleRow: View {
-    let label: String
-    let subtitle: String?
-    @Binding var isOn: Bool
-
-    init(_ label: String, subtitle: String? = nil, isOn: Binding<Bool>) {
-        self.label = label
-        self.subtitle = subtitle
-        self._isOn = isOn
-    }
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .labelsHidden()
-        }
-        .padding(.vertical, 10)
-    }
-}
-
 // MARK: - Tabs
 
-enum PopoverTab: String, CaseIterable, Identifiable {
+enum PopoverTab: String, CaseIterable, Identifiable, SettingsTab {
     case settings, sounds, triggers, profiles, stats, about
     var id: String { rawValue }
 

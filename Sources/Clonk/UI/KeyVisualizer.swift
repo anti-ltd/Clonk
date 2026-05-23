@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import iUX
 
 // Style for the key visualizer overlay.
 //   .full     — full mini-keyboard, pressed keys highlighted.
@@ -36,30 +37,17 @@ struct KeyVisualizerView: View {
         Group {
             if model.pianoModeEnabled {
                 PianoOverlay(model: model)
-                    .padding(12)
-                    .background(panelBG)
-                    .overlay(panelBorder)
+                    .glassPanel(padding: 12)
             } else {
                 switch model.keyVizStyle {
                 case .full:
                     keyboard
-                        .padding(12)
-                        .background(panelBG)
-                        .overlay(panelBorder)
+                        .glassPanel(padding: 12)
                 case .minimal:
                     MinimalKeyOverlay(model: model)
                 }
             }
         }
-    }
-
-    private var panelBG: some View {
-        RoundedRectangle(cornerRadius: 14).fill(.black.opacity(0.55))
-    }
-
-    private var panelBorder: some View {
-        RoundedRectangle(cornerRadius: 14)
-            .strokeBorder(.white.opacity(0.15), lineWidth: 1)
     }
 
     private var keyboard: some View {

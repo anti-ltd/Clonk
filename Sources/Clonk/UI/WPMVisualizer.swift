@@ -1,4 +1,5 @@
 import SwiftUI
+import iUX
 
 // Floating WPM readout. Big number + smoothed rolling area chart pulled
 // from AppModel.wpmHistory (sampled 4×/sec).
@@ -33,14 +34,7 @@ struct WPMVisualizerView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.black.opacity(0.6))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-        )
+        .glassPanel()
     }
 }
 

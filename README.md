@@ -26,7 +26,8 @@
 
 ---
 
-> Inspired by [FunKey](https://apps.apple.com/us/app/funkey-mechanical-keyboard-app/id6469420677?mt=12) — a fun idea. This is the free, open-source alternative.
+> Inspired by [Klack](https://apps.apple.com/gb/app/klack/id6446206067?mt=12
+Klack), [FunKey](https://apps.apple.com/us/app/funkey-mechanical-keyboard-app/id6469420677?mt=12) — a fun idea. This is the free, open-source alternative.
 
 ---
 
@@ -134,7 +135,19 @@ Clonk needs the macOS **Accessibility** permission to know *when* a key is press
 
 Requires **macOS 26 (Tahoe)** and a recent Swift toolchain.
 
+Clonk depends on **[iUX](../iUX)** — our shared UX layer (settings popover, menu-bar
+host, overlay windows) — via a local path (`../iUX`). Check it out as a sibling
+directory before building:
+
+```
+Projects/
+├── clonk/   ← this repo
+└── iUX/     ← https://github.com/anti-ltd/iux
+```
+
 ```bash
+git clone https://github.com/anti-ltd/iux.git ../iUX   # one-time: place iUX beside clonk
+
 make run      # build, bundle Clonk.app, launch it
 make app      # build the .app bundle (with icon) into build/
 make build    # just compile the release binary
