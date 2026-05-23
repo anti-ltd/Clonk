@@ -20,7 +20,7 @@
 ![Bundle](https://img.shields.io/badge/bundle-1.5%20MB-brightgreen?style=flat-square)
 ![CPU](https://img.shields.io/badge/idle%20CPU-%3C0.1%25-brightgreen?style=flat-square)
 
-`type · click · thock · synth`
+`click · clack · clonk`
 
 </div>
 
