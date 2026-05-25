@@ -12,7 +12,9 @@ ENTITLEMENTS = Resources/Clonk.entitlements
 # → Certificate Assistant → Create a Certificate → type "Code Signing".
 SIGN_ID := $(shell security find-certificate -c "Clonk Dev" >/dev/null 2>&1 && echo "Clonk Dev" || echo -)
 
-.PHONY: all build icon app run dmg clean
+APPBIN ?= ../app-arently/.build/release/app-arently
+
+.PHONY: all build icon app run dmg clean screenshot
 
 all: app
 
@@ -62,6 +64,11 @@ dmg: app
 	hdiutil create -volname "$(APP_NAME)" -srcfolder build/dmg -ov -format UDZO $(DMG)
 	rm -rf build/dmg
 	@echo "Built $(DMG)"
+
+screenshot: app
+	@mkdir -p assets
+	$(APPBIN) profile --app "$(BUNDLE)" --out assets/benchmark.png
+	@echo "Screenshot: assets/benchmark.png"
 
 clean:
 	rm -rf .build build

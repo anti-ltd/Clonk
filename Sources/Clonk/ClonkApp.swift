@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import iUX
+import ClonkCore
 
 // Clonk — a mechanical keyboard sound simulator for macOS.
 //
@@ -22,7 +23,7 @@ struct ClonkApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model = AppModel()
+    let clonk = ClonkModule()
     private var menuBar: MenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -38,24 +39,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // in only for appstage capture builds (-DAPPSTAGE); absent from releases.
         #if APPSTAGE
         if let idx = args.firstIndex(of: "--appstage"), idx + 1 < args.count {
-            AppStageCapture.run(state: args[idx + 1], model: model)
+            clonk.runAppStage(state: args[idx + 1])
             return
         }
         #endif
 
         menuBar = MenuBarController(
-            symbolName: "keyboard",
-            accessibilityLabel: "Clonk",
+            symbolName: ClonkModule.symbolName,
+            accessibilityLabel: ClonkModule.displayName,
             popoverSize: NSSize(width: 460, height: 560),
-            rootView: PopoverView(model: model),
+            rootView: clonk.settingsView(),
             menuProvider: { [weak self] in self?.contextMenu() }
         )
-        model.start()
+        clonk.start()
     }
 
     private func contextMenu() -> NSMenu {
         let menu = NSMenu()
-        let muteTitle = model.isMuted ? "Sleeping (auto)" : "Active"
+        let muteTitle = clonk.isMuted ? "Sleeping (auto)" : "Active"
         let status = NSMenuItem(title: muteTitle, action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
