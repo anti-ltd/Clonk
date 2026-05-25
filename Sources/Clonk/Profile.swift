@@ -45,6 +45,7 @@ struct Profile: Codable, Identifiable, Equatable {
     var keyVizEnabled: Bool = false
     var keyVizStyle: KeyVizStyle = .full
     var wpmVizEnabled: Bool = false
+    var cpmVizEnabled: Bool = false
 
     // Spatial audio
     var spatial: SpatialConfig = SpatialConfig()
@@ -55,6 +56,10 @@ struct Profile: Codable, Identifiable, Equatable {
     // Piano Mode — replaces the keyboard click with tuned piano notes.
     var pianoModeEnabled: Bool = false
     var piano: PianoConfig = PianoConfig()
+
+    // Guitar Mode — replaces the keyboard click with plucked guitar strings.
+    var guitarModeEnabled: Bool = false
+    var guitar: GuitarConfig = GuitarConfig()
 }
 
 @MainActor

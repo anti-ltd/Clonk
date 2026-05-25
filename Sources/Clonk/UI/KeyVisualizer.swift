@@ -38,6 +38,9 @@ struct KeyVisualizerView: View {
             if model.pianoModeEnabled {
                 PianoOverlay(model: model)
                     .glassPanel(padding: 12)
+            } else if model.guitarModeEnabled {
+                GuitarOverlay(model: model)
+                    .glassPanel(padding: 12)
             } else {
                 switch model.keyVizStyle {
                 case .full:
@@ -229,5 +232,120 @@ private struct PianoOverlay: View {
         let pitch = whiteW + gap
         let center = CGFloat(belowIdx + 1) * pitch - gap / 2
         return center - blackW / 2
+    }
+}
+
+// Mini fretboard overlay. Six strings in standard tuning with frets and
+// inlay markers; lights up the lowest playable fret position for any note
+// whose keycode is currently pressed.
+private struct GuitarOverlay: View {
+    let model: AppModel
+
+    // Open-string MIDI, low E → high E (standard tuning).
+    private static let openStrings = [40, 45, 50, 55, 59, 64]
+    private static let fretCount = 12
+    private static let inlayFrets: Set<Int> = [3, 5, 7, 9, 12]
+
+    private static let leftPad: CGFloat = 8     // frame → board inset (nut x)
+    private static let topPad: CGFloat = 4      // frame → board inset (top/bottom)
+    private static let vPad: CGFloat = 6        // board edge → outer string
+    private static let sGap: CGFloat = 9
+    private static let fGap: CGFloat = 15
+    private static var boardW: CGFloat { fGap * CGFloat(fretCount) }
+    // Span between the outer strings; the board adds vPad above and below.
+    private static var stringSpan: CGFloat { sGap * CGFloat(openStrings.count - 1) }
+    private static var boardH: CGFloat { stringSpan + vPad * 2 }
+
+    var body: some View {
+        let keymap = GuitarBank.keymap(for: model.guitarConfig)
+        let pressedMidi = Set(model.pressedKeys.compactMap { keymap[$0] })
+        let positions = pressedMidi.compactMap { Self.position(for: $0) }
+
+        Canvas { ctx, _ in
+            let board = CGRect(
+                x: Self.leftPad, y: Self.topPad,
+                width: Self.boardW, height: Self.boardH
+            )
+            ctx.fill(
+                Path(roundedRect: board, cornerRadius: 3),
+                with: .color(Color(red: 0.27, green: 0.18, blue: 0.11))
+            )
+
+            // Inlay markers between frets, centered on the board.
+            for f in Self.inlayFrets where f <= Self.fretCount {
+                let x = Self.fretX(f) - Self.fGap / 2
+                let midY = Self.topPad + Self.boardH / 2
+                if f == 12 {
+                    Self.dot(ctx, x: x, y: midY - Self.sGap, r: 2, color: .white.opacity(0.25))
+                    Self.dot(ctx, x: x, y: midY + Self.sGap, r: 2, color: .white.opacity(0.25))
+                } else {
+                    Self.dot(ctx, x: x, y: midY, r: 2, color: .white.opacity(0.25))
+                }
+            }
+
+            // Frets span the full board height (nut at f == 0 is brighter/thicker).
+            for f in 0...Self.fretCount {
+                let x = Self.fretX(f)
+                var p = Path()
+                p.move(to: CGPoint(x: x, y: Self.topPad))
+                p.addLine(to: CGPoint(x: x, y: Self.topPad + Self.boardH))
+                ctx.stroke(p, with: .color(.white.opacity(f == 0 ? 0.85 : 0.22)),
+                           lineWidth: f == 0 ? 2.5 : 1)
+            }
+
+            // Strings, low (thick) to high (thin).
+            for s in 0..<Self.openStrings.count {
+                let y = Self.stringY(s)
+                var p = Path()
+                p.move(to: CGPoint(x: Self.leftPad, y: y))
+                p.addLine(to: CGPoint(x: Self.leftPad + Self.boardW, y: y))
+                let thickness = 1.6 - CGFloat(s) * 0.18
+                ctx.stroke(p, with: .color(.white.opacity(0.55)), lineWidth: thickness)
+            }
+
+            // Pressed notes. Everything stays within [leftPad, leftPad+boardW]
+            // so a highlight never floats off the neck.
+            for (s, fret) in positions {
+                let y = Self.stringY(s)
+                if fret == 0 {
+                    // Open string: light the whole string and mark it at the nut.
+                    var p = Path()
+                    p.move(to: CGPoint(x: Self.leftPad, y: y))
+                    p.addLine(to: CGPoint(x: Self.leftPad + Self.boardW, y: y))
+                    ctx.stroke(p, with: .color(Color.accentColor), lineWidth: 2)
+                    Self.dot(ctx, x: Self.fretX(0) + 4, y: y, r: 3, color: Color.accentColor)
+                } else {
+                    Self.dot(ctx, x: Self.fretX(fret) - Self.fGap / 2, y: y, r: 3.5,
+                             color: Color.accentColor)
+                }
+            }
+        }
+        .frame(width: Self.leftPad + Self.boardW + 8, height: Self.topPad * 2 + Self.boardH)
+    }
+
+    private static func fretX(_ f: Int) -> CGFloat { leftPad + CGFloat(f) * fGap }
+
+    // Low E (index 0) sits at the bottom, inset from the board edge by vPad.
+    private static func stringY(_ s: Int) -> CGFloat {
+        topPad + vPad + CGFloat(openStrings.count - 1 - s) * sGap
+    }
+
+    private static func dot(_ ctx: GraphicsContext, x: CGFloat, y: CGFloat, r: CGFloat, color: Color) {
+        ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                 with: .color(color))
+    }
+
+    // Pick the lowest fret position that can play this note, preferring
+    // higher strings so notes cluster on the neck rather than spread out.
+    private static func position(for midi: Int) -> (string: Int, fret: Int)? {
+        var best: (string: Int, fret: Int)?
+        for s in 0..<openStrings.count {
+            let fret = midi - openStrings[s]
+            guard fret >= 0, fret <= fretCount else { continue }
+            if best == nil || fret < best!.fret {
+                best = (s, fret)
+            }
+        }
+        return best
     }
 }

@@ -15,7 +15,7 @@ import SwiftUI
 @MainActor
 enum AppStageCapture {
     // Overlay states rendered as a small floating widget (not the popover).
-    private static let overlayStates: Set<String> = ["wpm", "keyboard", "piano", "minimal"]
+    private static let overlayStates: Set<String> = ["wpm", "keyboard", "piano", "guitar", "minimal"]
 
     static func run(state: String, model: AppModel) {
         NSApp.setActivationPolicy(.accessory)
@@ -93,6 +93,7 @@ enum AppStageCapture {
         // overlay-defining fields here so seeding is deterministic and
         // order-independent; each case below opts back in to what it needs.
         model.pianoModeEnabled = false
+        model.guitarModeEnabled = false
         model.keyVizStyle = .full
         switch state {
         case "sounds":
@@ -131,6 +132,9 @@ enum AppStageCapture {
             model.seedOverlayState(wpm: 0, pressedKeycodes: [38, 40, 37])
         case "piano":
             model.pianoModeEnabled = true
+            model.seedOverlayState(wpm: 0, pressedKeycodes: [0, 2, 4, 7, 9])
+        case "guitar":
+            model.guitarModeEnabled = true
             model.seedOverlayState(wpm: 0, pressedKeycodes: [0, 2, 4, 7, 9])
         case "minimal":
             model.keyVizStyle = .minimal
@@ -180,7 +184,7 @@ private struct CaptureOverlay: View {
             case "wpm":
                 WPMVisualizerView(model: model)
                     .padding(16)
-            case "piano":
+            case "piano", "guitar":
                 KeyVisualizerView(model: model)
                     .padding(16)
             case "minimal":

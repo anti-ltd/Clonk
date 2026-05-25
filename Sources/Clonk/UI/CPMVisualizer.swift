@@ -1,13 +1,13 @@
 import SwiftUI
 import iUX
 
-// Floating WPM readout. Big number + smoothed rolling area chart pulled
-// from AppModel.wpmHistory (sampled 4×/sec).
-struct WPMVisualizerView: View {
+// Floating clicks-per-minute readout. Mirror of WPMVisualizerView, fed
+// from AppModel.cpmHistory (sampled 4×/sec).
+struct CPMVisualizerView: View {
     let model: AppModel
 
-    private var displayWPM: String {
-        let v = model.currentWPM
+    private var displayCPM: String {
+        let v = model.currentCPM
         guard v.isFinite, v >= 0 else { return "0" }
         return String(Int(min(v, 9999)))
     }
@@ -15,7 +15,7 @@ struct WPMVisualizerView: View {
     var body: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 0) {
-                Text(displayWPM)
+                Text(displayCPM)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
@@ -23,13 +23,13 @@ struct WPMVisualizerView: View {
                     .foregroundStyle(.white)
                     .frame(minWidth: 60, alignment: .leading)
                     .contentTransition(.numericText())
-                    .animation(.snappy, value: displayWPM)
-                Text("WPM")
+                    .animation(.snappy, value: displayCPM)
+                Text("CPM")
                     .font(.system(size: 9, weight: .semibold))
                     .tracking(2)
                     .foregroundStyle(.white.opacity(0.55))
             }
-            MeterSparkline(values: model.wpmHistory)
+            MeterSparkline(values: model.cpmHistory, floor: 30)
                 .frame(width: 130, height: 44)
         }
         .padding(.horizontal, 14)

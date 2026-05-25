@@ -97,16 +97,21 @@ struct PopoverView: View {
                         Text("Custom (sample pack)").tag(AppModel.customID)
                         Divider()
                         Text("Piano").tag(AppModel.pianoID)
+                        Text("Guitar").tag(AppModel.guitarID)
                     }
                     .labelsHidden()
                     .frame(width: 152)
                     PlayButton {
-                        if model.pianoModeEnabled { model.previewPiano() } else { model.preview() }
+                        if model.pianoModeEnabled { model.previewPiano() }
+                        else if model.guitarModeEnabled { model.previewGuitar() }
+                        else { model.preview() }
                     }
                 }
                 .padding(.vertical, 6)
                 if model.pianoModeEnabled {
                     PianoControls(model: model)
+                } else if model.guitarModeEnabled {
+                    GuitarControls(model: model)
                 } else {
                     Divider()
                     ToggleRow("Advanced", isOn: $model.keyboardAdvancedEnabled)
@@ -117,7 +122,7 @@ struct PopoverView: View {
                 }
             }
 
-            if model.isCustom && !model.pianoModeEnabled {
+            if model.isCustom && !model.pianoModeEnabled && !model.guitarModeEnabled {
                 CardSection("Sample Pack") {
                     HStack {
                         Picker("Pack", selection: packBinding) {
@@ -248,12 +253,20 @@ struct PopoverView: View {
 
     private var keyboardSoundBinding: Binding<String> {
         Binding(
-            get: { model.pianoModeEnabled ? AppModel.pianoID : model.themeID },
+            get: {
+                if model.pianoModeEnabled { return AppModel.pianoID }
+                if model.guitarModeEnabled { return AppModel.guitarID }
+                return model.themeID
+            },
             set: { newValue in
-                if newValue == AppModel.pianoID {
+                switch newValue {
+                case AppModel.pianoID:
                     model.pianoModeEnabled = true
-                } else {
+                case AppModel.guitarID:
+                    model.guitarModeEnabled = true
+                default:
                     model.pianoModeEnabled = false
+                    model.guitarModeEnabled = false
                     model.themeID = newValue
                 }
             }
@@ -303,7 +316,7 @@ private struct PianoControls: View {
                     get: { model.pianoConfig.scale },
                     set: { var c = model.pianoConfig; c.scale = $0; model.pianoConfig = c }
                 )) {
-                    ForEach(PianoScale.allCases) { Text($0.name).tag($0) }
+                    ForEach(MusicalScale.allCases) { Text($0.name).tag($0) }
                 }
                 .labelsHidden()
                 .frame(width: 180)
@@ -340,6 +353,70 @@ private struct PianoControls: View {
                 set: { var c = model.pianoConfig; c.modifierSustain = $0; model.pianoConfig = c }
             ))
             Text("Keyboard rows climb octaves; each row uses the chosen scale so mashing always sounds musical.")
+                .font(.caption).foregroundStyle(.secondary)
+                .padding(.top, 4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - Guitar Mode
+
+private struct GuitarControls: View {
+    @Bindable var model: AppModel
+
+    private static let rootChoices: [(Int, String)] = [
+        (40, "E2"), (45, "A2"), (50, "D3"), (52, "E3"), (55, "G3"),
+        (57, "A3"), (60, "C4"), (62, "D4"), (64, "E4"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Divider()
+            HStack(spacing: 10) {
+                Text("Scale").frame(width: 108, alignment: .leading)
+                Spacer(minLength: 0)
+                Picker("", selection: Binding(
+                    get: { model.guitarConfig.scale },
+                    set: { var c = model.guitarConfig; c.scale = $0; model.guitarConfig = c }
+                )) {
+                    ForEach(MusicalScale.allCases) { Text($0.name).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 180)
+            }
+            .padding(.vertical, 6)
+            Divider()
+            HStack(spacing: 10) {
+                Text("Root note").frame(width: 108, alignment: .leading)
+                Spacer(minLength: 0)
+                Picker("", selection: Binding(
+                    get: { model.guitarConfig.rootMidi },
+                    set: { var c = model.guitarConfig; c.rootMidi = $0; model.guitarConfig = c }
+                )) {
+                    ForEach(Self.rootChoices, id: \.0) { Text($0.1).tag($0.0) }
+                }
+                .labelsHidden()
+                .frame(width: 180)
+            }
+            .padding(.vertical, 6)
+            Divider()
+            HStack(spacing: 10) {
+                Text("Sustain").frame(width: 108, alignment: .leading)
+                Slider(value: Binding(
+                    get: { model.guitarConfig.sustain },
+                    set: { var c = model.guitarConfig; c.sustain = $0; model.guitarConfig = c }
+                ), in: 0.4...2.0)
+                Text(String(format: "%.1f×", model.guitarConfig.sustain))
+                    .monospacedDigit().frame(width: 42, alignment: .trailing)
+            }
+            .padding(.vertical, 6)
+            Divider()
+            ToggleRow("Modifier keys sustain", isOn: Binding(
+                get: { model.guitarConfig.modifierSustain },
+                set: { var c = model.guitarConfig; c.modifierSustain = $0; model.guitarConfig = c }
+            ))
+            Text("Each keystroke plucks a string; keyboard rows climb octaves of the chosen scale so mashing always sounds musical.")
                 .font(.caption).foregroundStyle(.secondary)
                 .padding(.top, 4)
                 .fixedSize(horizontal: false, vertical: true)
@@ -407,7 +484,8 @@ private struct VisualizersSection: View {
             }
             Divider()
             ToggleRow("WPM visualizer", isOn: $model.wpmVizEnabled)
-            if model.keyVizEnabled || model.wpmVizEnabled {
+            ToggleRow("CPM visualizer", isOn: $model.cpmVizEnabled)
+            if model.keyVizEnabled || model.wpmVizEnabled || model.cpmVizEnabled {
                 Text("Floating windows appear above all spaces. Drag from the background to move.")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.top, 4)
@@ -847,6 +925,8 @@ private struct StatsTab: View {
                     statRow("Scroll ticks", "\(s.totalScrolls)")
                     Divider()
                     statRow("Peak WPM", String(format: "%.0f", s.peakWPM))
+                    Divider()
+                    statRow("Peak CPM", String(format: "%.0f", s.peakCPM))
                 }
                 CardSection("Daily (last 30)") {
                     DailyBarChart(daily: s.daily)

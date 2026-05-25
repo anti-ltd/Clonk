@@ -35,6 +35,10 @@ final class SoundEngine {
     private var pianoConfig = PianoConfig()
     private var pianoEnabled = false
 
+    private let guitarBank = GuitarBank()
+    private var guitarConfig = GuitarConfig()
+    private var guitarEnabled = false
+
     init() {
         keyBank = ThemeBank.build(from: Theme.builtIn(id: Theme.defaultID))
         mouseBank = ThemeBank.build(from: Theme.mouseClick)
@@ -143,6 +147,28 @@ final class SoundEngine {
 
     func previewPiano(_ config: PianoConfig) {
         let buffer = pianoBank.previewBuffer(config)
+        emit(buffer, level: keyVolume, position: nil)
+    }
+
+    func setGuitarMode(_ enabled: Bool, config: GuitarConfig) {
+        guitarEnabled = enabled
+        guitarConfig = config
+        if enabled {
+            guitarBank.rebuildIfNeeded(config)
+        }
+    }
+
+    var isGuitarMode: Bool { guitarEnabled }
+
+    func playGuitarKey(keycode: Int, big: Bool) {
+        guard let buffer = guitarBank.buffer(for: keycode) else { return }
+        emit(buffer,
+             level: keyLevel() * keyVolume * (big ? 0.95 : 1.0),
+             position: spatialPosition(keycode: keycode))
+    }
+
+    func previewGuitar(_ config: GuitarConfig) {
+        let buffer = guitarBank.previewBuffer(config)
         emit(buffer, level: keyVolume, position: nil)
     }
 

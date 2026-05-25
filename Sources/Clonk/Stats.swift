@@ -7,6 +7,7 @@ struct StatsSnapshot: Codable, Equatable {
     var totalMouse: Int = 0
     var totalScrolls: Int = 0
     var peakWPM: Double = 0
+    var peakCPM: Double = 0
 
     // Keycode → count. Drives the heatmap.
     var keyCounts: [Int: Int] = [:]
@@ -56,6 +57,12 @@ final class StatsRecorder {
         scheduleSave()
     }
 
+    func recordCPM(_ cpm: Double) {
+        guard cpm > snapshot.peakCPM else { return }
+        snapshot.peakCPM = cpm
+        scheduleSave()
+    }
+
     func reset() {
         snapshot = StatsSnapshot()
         save()
@@ -67,6 +74,7 @@ final class StatsRecorder {
         lines.append("totalMouse,\(snapshot.totalMouse)")
         lines.append("totalScrolls,\(snapshot.totalScrolls)")
         lines.append("peakWPM,\(snapshot.peakWPM)")
+        lines.append("peakCPM,\(snapshot.peakCPM)")
         lines.append("")
         lines.append("date,keys")
         for (day, count) in snapshot.daily.sorted(by: { $0.key < $1.key }) {
@@ -140,4 +148,32 @@ final class WPMMeter {
     }
 
     func reset() { charTimestamps.removeAll() }
+}
+
+// Rolling clicks-per-minute estimator. Mirrors WPMMeter but counts mouse
+// clicks directly — no per-word division.
+@MainActor
+final class CPMMeter {
+    private var clickTimestamps: [Date] = []
+    private let window: TimeInterval = 5.0
+
+    var current: Double {
+        let now = Date()
+        let cutoff = now.addingTimeInterval(-window)
+        let recent = clickTimestamps.filter { $0 >= cutoff }.count
+        // Scale 5s window → minute.
+        return Double(recent) / window * 60.0
+    }
+
+    func recordClick() {
+        let now = Date()
+        clickTimestamps.append(now)
+        // Trim periodically.
+        if clickTimestamps.count > 256 {
+            let cutoff = now.addingTimeInterval(-window)
+            clickTimestamps.removeAll { $0 < cutoff }
+        }
+    }
+
+    func reset() { clickTimestamps.removeAll() }
 }

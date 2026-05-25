@@ -5,7 +5,9 @@ import AVFoundation
 // hammer-strike noise burst. Nothing on disk; banks are rebuilt whenever
 // the scale or root note changes.
 
-enum PianoScale: String, CaseIterable, Identifiable, Codable {
+// A musical scale, shared by the instrument modes (Piano, Guitar). The raw
+// values are persisted in profiles, so don't rename the cases.
+enum MusicalScale: String, CaseIterable, Identifiable, Codable {
     case majorPentatonic
     case minorPentatonic
     case major
@@ -44,7 +46,7 @@ enum PianoScale: String, CaseIterable, Identifiable, Codable {
 struct PianoConfig: Codable, Equatable {
     // MIDI note for the home row's first letter (default = C4).
     var rootMidi: Int = 60
-    var scale: PianoScale = .majorPentatonic
+    var scale: MusicalScale = .majorPentatonic
     // Release tail length scale (0.4…2.0); shorter = staccato.
     var sustain: Double = 1.0
     // When true, modifier keys (Shift/Cmd/Opt/Ctrl/Fn/CapsLock) play

@@ -17,6 +17,7 @@ final class AppModel {
     @ObservationIgnored private let monitor = KeyMonitor()
     @ObservationIgnored private let stats = StatsRecorder()
     @ObservationIgnored private let wpmMeter = WPMMeter()
+    @ObservationIgnored private let cpmMeter = CPMMeter()
     @ObservationIgnored private var accessibilityTimer: Timer?
     @ObservationIgnored private var lastPressAt: Date?
     @ObservationIgnored private var pressIntervalEMA: Double = 0.4
@@ -34,6 +35,7 @@ final class AppModel {
     @ObservationIgnored private var triggers: TriggersManager
     @ObservationIgnored private var keyVizWindow: OverlayWindow<KeyVisualizerView>?
     @ObservationIgnored private var wpmVizWindow: OverlayWindow<WPMVisualizerView>?
+    @ObservationIgnored private var cpmVizWindow: OverlayWindow<CPMVisualizerView>?
 
     // Slider 0…1 mapped to detent size — low sensitivity = sparse ticks.
     private var scrollDetent: Double { 60.0 - active.scrollSensitivity * 54.0 }
@@ -134,11 +136,28 @@ final class AppModel {
         get { active.pianoModeEnabled }
         set {
             active.pianoModeEnabled = newValue
-            if newValue { active.keyboardAdvancedEnabled = false }
+            // Instrument modes and advanced overrides are mutually exclusive.
+            if newValue {
+                active.guitarModeEnabled = false
+                active.keyboardAdvancedEnabled = false
+            }
         }
     }
     var pianoConfig: PianoConfig {
         get { active.piano } set { active.piano = newValue }
+    }
+    var guitarModeEnabled: Bool {
+        get { active.guitarModeEnabled }
+        set {
+            active.guitarModeEnabled = newValue
+            if newValue {
+                active.pianoModeEnabled = false
+                active.keyboardAdvancedEnabled = false
+            }
+        }
+    }
+    var guitarConfig: GuitarConfig {
+        get { active.guitar } set { active.guitar = newValue }
     }
     var keyVizEnabled: Bool {
         get { active.keyVizEnabled }
@@ -158,6 +177,10 @@ final class AppModel {
         get { active.wpmVizEnabled }
         set { active.wpmVizEnabled = newValue; refreshWPMViz() }
     }
+    var cpmVizEnabled: Bool {
+        get { active.cpmVizEnabled }
+        set { active.cpmVizEnabled = newValue; refreshCPMViz() }
+    }
 
     // MARK: - Runtime state
 
@@ -170,10 +193,13 @@ final class AppModel {
     @ObservationIgnored private(set) var recentTyping: String = ""
     private(set) var currentWPM: Double = 0
     private(set) var wpmHistory: [Double] = Array(repeating: 0, count: 80)
+    private(set) var currentCPM: Double = 0
+    private(set) var cpmHistory: [Double] = Array(repeating: 0, count: 80)
     @ObservationIgnored private(set) var secureInputActive: Bool = false
 
     static let customID = "custom"
     static let pianoID = "piano"
+    static let guitarID = "guitar"
     var isCustom: Bool { themeID == Self.customID }
     var currentTheme: Theme { Theme.builtIn(id: themeID) }
     var activePack: SamplePack? { installedPacks.first { $0.id == samplePackID } }
@@ -224,6 +250,7 @@ final class AppModel {
         beginAuxTimers()
         refreshKeyViz()
         refreshWPMViz()
+        refreshCPMViz()
     }
 
     func refreshAccessibility() {
@@ -324,6 +351,11 @@ final class AppModel {
         engine.previewPiano(pianoConfig)
     }
 
+    func previewGuitar() {
+        engine.setGuitarMode(true, config: guitarConfig)
+        engine.previewGuitar(guitarConfig)
+    }
+
     // Plays a key event respecting all sound settings. Shared by the global
     // listener and the in-app sound playground.
     func playKeyEvent(down: Bool, bigKey: Bool, modifier: Bool, keycode: Int = -1) {
@@ -365,12 +397,16 @@ final class AppModel {
                 engine.playPianoKey(keycode: keycode, big: bigKey)
                 return
             }
+            if guitarModeEnabled {
+                engine.playGuitarKey(keycode: keycode, big: bigKey)
+                return
+            }
             engine.playKey(down: true, bigKey: bigKey,
                            override: override?.0, basePitch: override?.1 ?? 1.0,
                            keycode: keycode)
         } else {
             guard releaseSoundEnabled else { return }
-            if pianoModeEnabled { return }
+            if pianoModeEnabled || guitarModeEnabled { return }
             if pressIntervalEMA < 0.085 { return }
             engine.playKey(down: false, bigKey: bigKey,
                            override: override?.0, basePitch: override?.1 ?? 1.0,
@@ -459,8 +495,13 @@ final class AppModel {
     }
 
     func playMouseEvent(down: Bool, button: Int = 0) {
-        if down { pressedMouseButtons.insert(button) } else { pressedMouseButtons.remove(button) }
-        if down && statsEnabled { stats.recordMouse(); statsVersion &+= 1 }
+        if down {
+            pressedMouseButtons.insert(button)
+            cpmMeter.recordClick()
+            if statsEnabled { stats.recordMouse(); statsVersion &+= 1 }
+        } else {
+            pressedMouseButtons.remove(button)
+        }
         guard mouseSoundEnabled else { return }
         if isMuted { return }
         if !down && !mouseReleaseEnabled { return }
@@ -536,6 +577,7 @@ final class AppModel {
         engine.setScrollTheme(Theme.scrollVoice(id: active.scrollThemeID))
         applyKeyVoice()
         engine.setPianoMode(active.pianoModeEnabled, config: active.piano)
+        engine.setGuitarMode(active.guitarModeEnabled, config: active.guitar)
         engine.applySpatial(active.spatial)
         // Trigger config diff: only push if a different profile loaded.
         if let old, old.id != active.id {
@@ -583,7 +625,10 @@ final class AppModel {
     private func beginAuxTimers() {
         wpmTimer?.invalidate()
         wpmTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.sampleWPM() }
+            MainActor.assumeIsolated {
+                self?.sampleWPM()
+                self?.sampleCPM()
+            }
         }
         secureInputTimer?.invalidate()
         secureInputTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -615,6 +660,30 @@ final class AppModel {
             let oldPeak = stats.snapshot.peakWPM
             stats.recordWPM(currentWPM)
             if stats.snapshot.peakWPM != oldPeak { statsVersion &+= 1 }
+        }
+    }
+
+    private func sampleCPM() {
+        let raw = cpmMeter.current
+        // Skip @Observable churn when nobody's watching and idle.
+        if raw == 0 && currentCPM < 0.05 && !cpmVizEnabled && !statsEnabled {
+            return
+        }
+        // EMA smoothing so the line glides instead of jittering.
+        let next = currentCPM * 0.6 + raw * 0.4
+        if abs(next - currentCPM) > 0.01 {
+            currentCPM = next
+        }
+        // Only maintain the history when the sparkline is actually
+        // visible — every append invalidates the array.
+        if cpmVizEnabled {
+            cpmHistory.append(currentCPM)
+            if cpmHistory.count > 80 { cpmHistory.removeFirst(cpmHistory.count - 80) }
+        }
+        if statsEnabled && currentCPM > 0 {
+            let oldPeak = stats.snapshot.peakCPM
+            stats.recordCPM(currentCPM)
+            if stats.snapshot.peakCPM != oldPeak { statsVersion &+= 1 }
         }
     }
 
@@ -722,6 +791,26 @@ final class AppModel {
             wpmVizWindow?.persist()
             wpmVizWindow?.orderOut(nil)
             wpmVizWindow = nil
+        }
+    }
+
+    private func refreshCPMViz() {
+        if active.cpmVizEnabled {
+            if cpmVizWindow == nil {
+                // Offset the default frame so it doesn't land exactly on
+                // the WPM readout when both are first enabled.
+                let size = NSSize(width: 260, height: 80)
+                let defaultRect = NSRect(x: 100, y: 200, width: size.width, height: size.height)
+                let win = OverlayWindow(name: "cpmviz", size: size, defaultRect: defaultRect) {
+                    CPMVisualizerView(model: self)
+                }
+                cpmVizWindow = win
+                win.show()
+            }
+        } else {
+            cpmVizWindow?.persist()
+            cpmVizWindow?.orderOut(nil)
+            cpmVizWindow = nil
         }
     }
 }
