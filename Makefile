@@ -1,5 +1,6 @@
 APP_NAME = Clonk
 BUNDLE   = build/$(APP_NAME).app
+DMG      = build/$(APP_NAME).dmg
 BIN      = .build/release/$(APP_NAME)
 ICONSET  = build/AppIcon.iconset
 ICNS     = Resources/AppIcon.icns
@@ -11,7 +12,7 @@ ENTITLEMENTS = Resources/Clonk.entitlements
 # → Certificate Assistant → Create a Certificate → type "Code Signing".
 SIGN_ID := $(shell security find-certificate -c "Clonk Dev" >/dev/null 2>&1 && echo "Clonk Dev" || echo -)
 
-.PHONY: all build icon app run clean
+.PHONY: all build icon app run dmg clean
 
 all: app
 
@@ -51,6 +52,16 @@ app: icon
 
 run: app
 	open $(BUNDLE)
+
+# Package the signed .app into a compressed, drag-to-install disk image.
+dmg: app
+	rm -rf build/dmg $(DMG)
+	mkdir -p build/dmg
+	cp -R $(BUNDLE) build/dmg/
+	ln -s /Applications build/dmg/Applications
+	hdiutil create -volname "$(APP_NAME)" -srcfolder build/dmg -ov -format UDZO $(DMG)
+	rm -rf build/dmg
+	@echo "Built $(DMG)"
 
 clean:
 	rm -rf .build build
