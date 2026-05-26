@@ -18,7 +18,7 @@ enum AppIconRenderer {
 
         let specs: [(base: Int, scale: Int)] = [
             (16, 1), (16, 2), (32, 1), (32, 2), (128, 1),
-            (128, 2), (256, 1), (256, 2), (512, 1),
+            (128, 2), (256, 1), (256, 2), (512, 1), (512, 2),
         ]
         for spec in specs {
             let px = spec.base * spec.scale

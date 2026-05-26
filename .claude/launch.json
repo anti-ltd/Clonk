@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "appstage-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/x/Projects/appstage/src/server.mjs", "--serve", "--port", "7655"],
+      "port": 7655
+    }
+  ]
+}
