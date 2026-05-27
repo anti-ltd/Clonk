@@ -22,7 +22,7 @@ SIGN_ID := $(shell security find-certificate -c "Clonk Dev" >/dev/null 2>&1 && e
 
 APPBIN ?= ../app-arently/.build/release/app-arently
 
-.PHONY: all build icon app run dmg build-mas clean screenshot
+.PHONY: all build icon app run dmg build-mas bump version clean screenshot test
 
 all: app
 
@@ -73,11 +73,28 @@ dmg: app
 	rm -rf build/dmg
 	@echo "Built $(DMG)"
 
+# Print the current marketing + build version.
+version:
+	@SHORT=$$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist); \
+	BUILD=$$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" Resources/Info.plist); \
+	echo "Clonk $$SHORT ($$BUILD)"
+
+# Increment CFBundleVersion by 1. App Store Connect rejects duplicate build
+# numbers under the same marketing version, so build-mas calls this first to
+# guarantee each submission is fresh.
+bump:
+	@CURRENT=$$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" Resources/Info.plist); \
+	NEXT=$$(( CURRENT + 1 )); \
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $$NEXT" Resources/Info.plist; \
+	echo "CFBundleVersion: $$CURRENT -> $$NEXT"
+
 # Mac App Store distribution package.
 # Requires "3rd Party Mac Developer Application" and "3rd Party Mac Developer
 # Installer" certificates from your Apple Developer account. Override the
 # signing identities via MAS_SIGN_APP and MAS_SIGN_PKG env vars.
+# Bumps CFBundleVersion automatically; pass NO_BUMP=1 to skip.
 build-mas: icon
+	@if [ -z "$(NO_BUMP)" ]; then $(MAKE) --no-print-directory bump; fi
 	rm -rf $(BUNDLE)
 	mkdir -p $(BUNDLE)/Contents/MacOS
 	mkdir -p $(BUNDLE)/Contents/Resources
@@ -104,6 +121,9 @@ build-mas: icon
 screenshot: app
 	$(APPBIN) profile --app "$(BUNDLE)" --out Resources/benchmark.png
 	@echo "Screenshot: Resources/benchmark.png"
+
+test:
+	swift test
 
 clean:
 	rm -rf .build build

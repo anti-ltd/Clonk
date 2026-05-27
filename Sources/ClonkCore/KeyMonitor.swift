@@ -125,6 +125,12 @@ private func clonkEventTapCallback(
     case .otherMouseUp:
         MainActor.assumeIsolated { monitor.dispatchMouse(down: false, button: 2) }
     case .scrollWheel:
+        // Drop inertial events. After fingers lift, the trackpad keeps
+        // firing scroll events with decaying deltas for ~1–2 s; without
+        // this filter we'd keep emitting clicks well past the gesture.
+        // Notched mice never set this field, so they pass straight through.
+        let momentum = event.getIntegerValueField(.scrollWheelEventMomentumPhase)
+        if momentum != 0 { break }
         // Axis 1 = vertical, axis 2 = horizontal. Prefer point deltas;
         // fall back to integer line deltas for notched mice.
         var dx = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis2)

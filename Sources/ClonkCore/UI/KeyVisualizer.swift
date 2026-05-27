@@ -34,7 +34,10 @@ struct KeyVisualizerView: View {
     let model: AppModel
 
     var body: some View {
-        Group {
+        // `pressedKeys` / `recentKeyEvents` are @ObservationIgnored — reading
+        // this rate-limited tick is how the overlay learns they changed.
+        let _ = model.keyVizRev
+        return Group {
             if model.pianoModeEnabled {
                 PianoOverlay(model: model)
                     .glassPanel(padding: 12)
@@ -93,6 +96,10 @@ private struct MinimalKeyOverlay: View {
     private static let maxVisible = 8
 
     var body: some View {
+        // Subscribe to the rate-limited tick (see AppModel.bumpKeyVizRev).
+        // `recentKeyEvents` itself is @ObservationIgnored, so reading it does
+        // not subscribe — we only refresh ~30×/sec instead of per-keystroke.
+        let _ = model.keyVizRev
         let allEvents = model.recentKeyEvents
         let events = Array(allEvents.suffix(Self.maxVisible))
         let idle = events.isEmpty
@@ -100,11 +107,8 @@ private struct MinimalKeyOverlay: View {
         // show it on hover only. When keys are flowing it stays hidden so
         // the chips read as a pure visualizer.
         let showBackdrop = hovering
-        // Only run the timeline while there's a fading chip — pressed
-        // chips are static, no per-frame redraw needed.
-        let needsTimeline = events.contains { $0.releasedAt != nil }
 
-        ZStack {
+        return ZStack {
             // Invisible hit-testable layer so `.onHover` fires and the
             // window stays draggable from its background.
             Color.black.opacity(0.001)
@@ -126,16 +130,13 @@ private struct MinimalKeyOverlay: View {
                     .transition(.opacity)
             }
 
-            TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !needsTimeline)) { ctx in
-                let now = ctx.date
-                HStack(spacing: 6) {
-                    ForEach(events) { e in
-                        chip(for: e, now: now)
-                    }
+            HStack(spacing: 6) {
+                ForEach(events) { e in
+                    chip(for: e)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .animation(Self.spring, value: events.map(\.id))
         }
         .padding(4)
@@ -145,15 +146,13 @@ private struct MinimalKeyOverlay: View {
         .animation(.easeInOut(duration: 0.2), value: showBackdrop)
     }
 
-    private func chip(for e: KeyPressEvent, now: Date) -> some View {
-        // Released chips fade alpha + drift up. Pressed chips render
-        // statically — no per-frame math.
-        let releaseT: Double = e.releasedAt.map { r in
-            max(0, min(1, now.timeIntervalSince(r) / Self.fade))
-        } ?? 0
-        let alpha: Double = 1.0 - releaseT
-        let drift: CGFloat = -8 * CGFloat(releaseT)
-
+    // Each chip fades + drifts via an implicit SwiftUI animation keyed on
+    // `releasedAt`. Once released, opacity/offset are interpolated by Core
+    // Animation on the render server — no per-frame main-thread redraw
+    // (the previous `TimelineView(.animation)` approach was redrawing the
+    // entire HStack at 24 fps while keys were fading).
+    private func chip(for e: KeyPressEvent) -> some View {
+        let released = e.releasedAt != nil
         return Text(e.label)
             .font(.system(size: 14, weight: .semibold, design: .rounded))
             .foregroundStyle(.white)
@@ -165,8 +164,9 @@ private struct MinimalKeyOverlay: View {
                 RoundedRectangle(cornerRadius: 7)
                     .fill(.black.opacity(0.65))
             )
-            .offset(y: drift)
-            .opacity(alpha)
+            .offset(y: released ? -8 : 0)
+            .opacity(released ? 0 : 1)
+            .animation(.easeOut(duration: Self.fade), value: released)
             .transition(.asymmetric(
                 insertion: .scale(scale: 0.6).combined(with: .opacity),
                 removal: .opacity

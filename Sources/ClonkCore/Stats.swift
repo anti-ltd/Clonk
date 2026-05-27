@@ -99,11 +99,19 @@ final class StatsRecorder {
         }
     }
 
-    private static func todayKey() -> String {
+    // Cached: `DateFormatter.init` is expensive (locale/ICU resolution) and
+    // this is called on every keystroke via `bumpDaily`. One instance lives
+    // for the process lifetime; thread-safety isn't a concern because the
+    // recorder is @MainActor.
+    private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: Date())
+        return f
+    }()
+
+    private static func todayKey() -> String {
+        dayFormatter.string(from: Date())
     }
 
     // Coalesced save — batch writes so we never hit the disk per keystroke.

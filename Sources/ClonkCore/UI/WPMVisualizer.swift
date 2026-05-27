@@ -15,6 +15,10 @@ struct WPMVisualizerView: View {
     var body: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 0) {
+                // No `.contentTransition(.numericText())` — fancy on paper,
+                // but every WPM tick spawns a glyph-roll animation, and
+                // SwiftUI ends up redrawing the digit at display refresh
+                // rate. Plain Text snap-changes once per integer step.
                 Text(displayWPM)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .monospacedDigit()
@@ -22,8 +26,6 @@ struct WPMVisualizerView: View {
                     .minimumScaleFactor(0.5)
                     .foregroundStyle(.white)
                     .frame(minWidth: 60, alignment: .leading)
-                    .contentTransition(.numericText())
-                    .animation(.snappy, value: displayWPM)
                 Text("WPM")
                     .font(.system(size: 9, weight: .semibold))
                     .tracking(2)

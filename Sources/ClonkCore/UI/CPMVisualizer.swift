@@ -15,6 +15,8 @@ struct CPMVisualizerView: View {
     var body: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 0) {
+                // See WPMVisualizerView — numericText transition is too
+                // costly when the digit changes 4×/sec.
                 Text(displayCPM)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .monospacedDigit()
@@ -22,8 +24,6 @@ struct CPMVisualizerView: View {
                     .minimumScaleFactor(0.5)
                     .foregroundStyle(.white)
                     .frame(minWidth: 60, alignment: .leading)
-                    .contentTransition(.numericText())
-                    .animation(.snappy, value: displayCPM)
                 Text("CPM")
                     .font(.system(size: 9, weight: .semibold))
                     .tracking(2)

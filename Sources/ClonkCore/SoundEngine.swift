@@ -10,7 +10,14 @@ final class SoundEngine {
     private let monoFormat = AVAudioFormat(standardFormatWithSampleRate: Synth.sampleRate, channels: 1)!
     private var players: [AVAudioPlayerNode] = []
     private var next = 0
-    private let voiceCount = 6
+    // 4 voices is plenty for click polyphony: each click is ~50 ms, so even
+    // 30 keys/sec recycles voices comfortably (interrupted older clicks are
+    // mostly inaudible).
+    private let voiceCount = 4
+    // Whether players are currently routed *through* the env node (spatial
+    // on) or straight to the main mixer (spatial off — skips a DSP layer
+    // per click).
+    private var routedThroughEnv = false
 
     private var keyBank: ThemeBank
     private var mouseBank: ThemeBank
@@ -27,7 +34,12 @@ final class SoundEngine {
     // playing nothing. Pause the engine after a stretch of silence and
     // bring it back on the next emit().
     private var idleTimer: Timer?
-    private static let idlePause: TimeInterval = 6.0
+    private var lastEmitAt: Date = .distantPast
+    // Aggressive pause — while `engine.isRunning`, the audio IOThread runs
+    // a real-time render cycle pulling silence through the graph for ~2-4%
+    // CPU. Pausing fast keeps idle low; the engine restarts in <50 ms on
+    // the next emit, which the brain doesn't perceive as latency.
+    private static let idlePause: TimeInterval = 1.5
 
     private var spatial = SpatialConfig()
 
@@ -59,10 +71,13 @@ final class SoundEngine {
         for _ in 0..<voiceCount {
             let node = AVAudioPlayerNode()
             engine.attach(node)
-            engine.connect(node, to: env, format: monoFormat)
-            node.renderingAlgorithm = .equalPowerPanning
+            // Default to bypassing the environment node — spatial defaults to
+            // off, and routing through env adds per-click DSP. `applySpatial`
+            // re-wires the graph if the user enables spatial.
+            engine.connect(node, to: engine.mainMixerNode, format: monoFormat)
             players.append(node)
         }
+        routedThroughEnv = false
         engine.prepare()
         start()
 
@@ -71,6 +86,18 @@ final class SoundEngine {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.start() }
         }
+    }
+
+    // Wire each player either through the environment node (3D / HRTF) or
+    // straight to the main mixer (no spatial). Reconnecting is safe while
+    // the engine is running per AVAudioEngine docs.
+    private func setRouteThroughEnv(_ on: Bool) {
+        guard on != routedThroughEnv else { return }
+        for p in players {
+            engine.disconnectNodeOutput(p)
+            engine.connect(p, to: on ? env : engine.mainMixerNode, format: monoFormat)
+        }
+        routedThroughEnv = on
     }
 
     private func start() {
@@ -112,8 +139,10 @@ final class SoundEngine {
 
     func applySpatial(_ cfg: SpatialConfig) {
         spatial = cfg
+        setRouteThroughEnv(cfg.enabled)
+        guard cfg.enabled else { return }
         let algo: AVAudio3DMixingRenderingAlgorithm =
-            cfg.enabled ? (cfg.hrtf ? .HRTF : .equalPowerPanning) : .equalPowerPanning
+            cfg.hrtf ? .HRTF : .equalPowerPanning
         for player in players {
             player.renderingAlgorithm = algo
         }
@@ -223,21 +252,50 @@ final class SoundEngine {
         let node = players[next]
         next = (next + 1) % players.count
         node.volume = level
+        // Only touch `position` when spatial is engaged. The default (0,0,0)
+        // is set at configure time and never moves while spatial is off, so
+        // skipping the assignment shaves an Obj-C call from every emit.
         if let position {
             node.position = position
-        } else {
-            node.position = AVAudio3DPoint(x: 0, y: 0, z: 0)
         }
         node.scheduleBuffer(buffer, at: nil, options: .interrupts, completionHandler: nil)
         if !node.isPlaying { node.play() }
         bumpIdleTimer()
     }
 
+    // Idle pause uses a single self-rescheduling timer rather than tearing
+    // down and rebuilding one on every emit (run-loop churn at high
+    // click rates). Each emit just stamps `lastEmitAt`; the timer checks
+    // elapsed time when it fires and either pauses the engine or
+    // re-arms for the remainder.
     private func bumpIdleTimer() {
-        idleTimer?.invalidate()
+        lastEmitAt = Date()
+        guard idleTimer == nil else { return }
         idleTimer = Timer.scheduledTimer(withTimeInterval: Self.idlePause, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated { self?.pauseIfIdle() }
+            MainActor.assumeIsolated { self?.idleTick() }
         }
+    }
+
+    private func idleTick() {
+        idleTimer = nil
+        let elapsed = Date().timeIntervalSince(lastEmitAt)
+        if elapsed >= Self.idlePause {
+            pauseIfIdle()
+        } else {
+            // Activity since the timer was armed — re-arm for the remainder.
+            let remaining = max(0.1, Self.idlePause - elapsed)
+            idleTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated { self?.idleTick() }
+            }
+        }
+    }
+
+    // Public: force-pause the live engine. Used when the model switches
+    // to the cached backend so the live IO thread stops spinning.
+    func pause() {
+        idleTimer?.invalidate()
+        idleTimer = nil
+        pauseIfIdle()
     }
 
     private func pauseIfIdle() {

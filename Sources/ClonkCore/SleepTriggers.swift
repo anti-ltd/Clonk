@@ -344,7 +344,10 @@ final class TriggersManager {
         }
     }
 
-    private struct Snapshot {
+    // Internal (not private) so the test target can construct synthetic
+    // snapshots and exercise `evaluate(_:_:)` without standing up a full
+    // observer graph.
+    nonisolated struct Snapshot: Sendable {
         let frontBundle: String?
         let externalKB: Bool
         let calendarBusy: Bool
@@ -374,6 +377,12 @@ final class TriggersManager {
     }
 
     private func evaluate(_ kind: TriggerKind, _ s: Snapshot) -> Bool {
+        Self.evaluate(kind, s)
+    }
+
+    // Pure predicate, isolated from any system state — same logic used by
+    // recompute(), surfaced so tests can hand it canned snapshots.
+    nonisolated static func evaluate(_ kind: TriggerKind, _ s: Snapshot) -> Bool {
         switch kind {
         case .externalKeyboard: return s.externalKB
         case .calendarBusy: return s.calendarBusy

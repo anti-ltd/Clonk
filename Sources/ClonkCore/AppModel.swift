@@ -15,6 +15,7 @@ import SwiftUI
 @Observable
 final class AppModel {
     @ObservationIgnored private let engine = SoundEngine()
+    @ObservationIgnored private let cached = CachedSoundEngine()
     @ObservationIgnored private let monitor = KeyMonitor()
     @ObservationIgnored private let stats = StatsRecorder()
     @ObservationIgnored private let wpmMeter = WPMMeter()
@@ -37,8 +38,6 @@ final class AppModel {
     @ObservationIgnored private var keyVizWindow: OverlayWindow<KeyVisualizerView>?
     @ObservationIgnored private var wpmVizWindow: OverlayWindow<WPMVisualizerView>?
     @ObservationIgnored private var cpmVizWindow: OverlayWindow<CPMVisualizerView>?
-    @ObservationIgnored private var settingsWindow: NSWindow?
-
     // Slider 0…1 mapped to detent size — low sensitivity = sparse ticks.
     private var scrollDetent: Double { 60.0 - active.scrollSensitivity * 54.0 }
 
@@ -92,6 +91,12 @@ final class AppModel {
     }
     var advanced: AdvancedConfig {
         get { active.advanced } set { active.advanced = newValue }
+    }
+    var enginePlaybackMode: EnginePlaybackMode {
+        get { active.enginePlaybackMode } set { active.enginePlaybackMode = newValue }
+    }
+    var releaseSuppressInterval: Double {
+        get { active.releaseSuppressInterval } set { active.releaseSuppressInterval = newValue }
     }
     var mouseThemeID: String {
         get { active.mouseThemeID } set { active.mouseThemeID = newValue }
@@ -188,8 +193,15 @@ final class AppModel {
 
     private(set) var accessibilityGranted = false
     private(set) var installedPacks: [SamplePack] = []
-    private(set) var pressedKeys: Set<Int> = []
-    private(set) var recentKeyEvents: [KeyPressEvent] = []
+    // `pressedKeys` and `recentKeyEvents` are mutated on every keystroke.
+    // Marking them @ObservationIgnored prevents SwiftUI from rebuilding the
+    // overlay synchronously per-event — a 20 keys/sec spam would otherwise
+    // kick off 20 full StackLayout passes/sec. Views subscribe to
+    // `keyVizRev` instead, which we bump at most once per ~33 ms.
+    @ObservationIgnored private(set) var pressedKeys: Set<Int> = []
+    @ObservationIgnored private(set) var recentKeyEvents: [KeyPressEvent] = []
+    private(set) var keyVizRev: Int = 0
+    @ObservationIgnored private var keyVizBumpPending = false
     private(set) var pressedMouseButtons: Set<Int> = []
     private(set) var scrollPulses: [String: Int] = ["up": 0, "down": 0]
     @ObservationIgnored private(set) var recentTyping: String = ""
@@ -244,6 +256,9 @@ final class AppModel {
     // MARK: - Lifecycle
 
     func start() {
+        // Pause the live engine immediately if we'll be using cached — keeps
+        // the audio IO thread from spinning until something needs it.
+        if useCached { engine.pause() }
         refreshAccessibility()
         accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshAccessibility() }
@@ -345,7 +360,11 @@ final class AppModel {
     // MARK: - Preview
 
     func preview() {
-        engine.playKey(down: true, bigKey: false)
+        if useCached {
+            cached.playKey(down: true, bigKey: false)
+        } else {
+            engine.playKey(down: true, bigKey: false)
+        }
     }
 
     func previewPiano() {
@@ -361,7 +380,12 @@ final class AppModel {
     // Plays a key event respecting all sound settings. Shared by the global
     // listener and the in-app sound playground.
     func playKeyEvent(down: Bool, bigKey: Bool, modifier: Bool, keycode: Int = -1) {
-        if keycode >= 0 {
+        // Visualizer overlay only cares about per-key state when it's
+        // actually visible. Skipping pressedKeys / recentKeyEvents updates
+        // when nobody's looking saves a chunk of per-event work during
+        // sustained spam.
+        let visualizing = keyVizEnabled
+        if keycode >= 0 && visualizing {
             if modifier {
                 let wasPressed = pressedKeys.contains(keycode)
                 if wasPressed {
@@ -403,17 +427,39 @@ final class AppModel {
                 engine.playGuitarKey(keycode: keycode, big: bigKey)
                 return
             }
-            engine.playKey(down: true, bigKey: bigKey,
-                           override: override?.0, basePitch: override?.1 ?? 1.0,
-                           keycode: keycode)
+            if useCached {
+                cached.playKey(down: true, bigKey: bigKey, keycode: keycode)
+            } else {
+                engine.playKey(down: true, bigKey: bigKey,
+                               override: override?.0, basePitch: override?.1 ?? 1.0,
+                               keycode: keycode)
+            }
         } else {
             guard releaseSoundEnabled else { return }
             if pianoModeEnabled || guitarModeEnabled { return }
-            if pressIntervalEMA < 0.085 { return }
-            engine.playKey(down: false, bigKey: bigKey,
-                           override: override?.0, basePitch: override?.1 ?? 1.0,
-                           keycode: keycode)
+            if pressIntervalEMA < active.releaseSuppressInterval { return }
+            if useCached {
+                cached.playKey(down: false, bigKey: bigKey, keycode: keycode)
+            } else {
+                engine.playKey(down: false, bigKey: bigKey,
+                               override: override?.0, basePitch: override?.1 ?? 1.0,
+                               keycode: keycode)
+            }
         }
+    }
+
+    // True when the active profile can be served by the lightweight cached
+    // backend. Features that need real-time DSP (piano/guitar synthesis,
+    // 3D spatial, per-key/per-button overrides) force the live engine
+    // regardless of the user's stated preference.
+    private var useCached: Bool {
+        guard active.enginePlaybackMode == .cached else { return false }
+        if pianoModeEnabled || guitarModeEnabled { return false }
+        if spatialConfig.enabled { return false }
+        if keyboardAdvancedEnabled && !advanced.keys.isEmpty { return false }
+        if mouseAdvancedEnabled && !advanced.mouse.isEmpty { return false }
+        if scrollAdvancedEnabled && !advanced.scroll.isEmpty { return false }
+        return true
     }
 
     private func recordKeyPress(keycode: Int) {
@@ -426,6 +472,7 @@ final class AppModel {
             recentKeyEvents.removeFirst(recentKeyEvents.count - 24)
         }
         keyLastDownAt[keycode] = Date()
+        bumpKeyVizRev()
     }
 
     private func recordKeyRelease(keycode: Int) {
@@ -435,6 +482,20 @@ final class AppModel {
             recentKeyEvents[i].releasedAt = now
         }
         keyLastDownAt.removeValue(forKey: keycode)
+        bumpKeyVizRev()
+    }
+
+    // Coalesce visualizer-state changes (pressedKeys, recentKeyEvents) into
+    // at-most one observable bump every ~33 ms. Without this, fast typing
+    // forces SwiftUI to do one full layout pass per keystroke.
+    private func bumpKeyVizRev() {
+        guard !keyVizBumpPending else { return }
+        keyVizBumpPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.033) { [weak self] in
+            guard let self else { return }
+            self.keyVizBumpPending = false
+            self.keyVizRev &+= 1
+        }
     }
 
     // Sweep keys that look stuck — i.e. still marked pressed but with
@@ -471,6 +532,7 @@ final class AppModel {
         }
         if kept.count != recentKeyEvents.count {
             recentKeyEvents = kept
+            bumpKeyVizRev()
         }
     }
 
@@ -509,15 +571,19 @@ final class AppModel {
         if !down && !mouseReleaseEnabled { return }
         let override = (mouseAdvancedEnabled ? advanced.mouse[button] : nil)
             .flatMap { o in Theme.any(id: o.themeID).map { ($0, o.pitchMul) } }
-        engine.playMouse(down: down, override: override?.0, basePitch: override?.1 ?? 1.0)
+        if useCached {
+            cached.playMouse(down: down)
+        } else {
+            engine.playMouse(down: down, override: override?.0, basePitch: override?.1 ?? 1.0)
+        }
     }
 
     func previewMouse() {
-        engine.playMouse(down: true)
+        if useCached { cached.playMouse(down: true) } else { engine.playMouse(down: true) }
     }
 
     func previewScroll() {
-        engine.playScroll()
+        if useCached { cached.playScroll() } else { engine.playScroll() }
     }
 
     func previewOverride(theme: Theme, basePitch: Double) {
@@ -555,7 +621,11 @@ final class AppModel {
             if scrollSoundEnabled && !isMuted {
                 let override = (scrollAdvancedEnabled ? advanced.scroll[dir] : nil)
                     .flatMap { o in Theme.any(id: o.themeID).map { ($0, o.pitchMul) } }
-                engine.playScroll(override: override?.0, basePitch: override?.1 ?? 1.0)
+                if useCached {
+                    cached.playScroll()
+                } else {
+                    engine.playScroll(override: override?.0, basePitch: override?.1 ?? 1.0)
+                }
             }
             ticks += 1
         }
@@ -570,7 +640,10 @@ final class AppModel {
     // MARK: - Internals
 
     private func propagateToEngine(old: Profile?) {
-        // Push every cached setting through to the audio engine.
+        // Push every cached setting through to both backends. Whichever
+        // one is currently active will use them; the other stays warm and
+        // ready in case the user toggles modes or enables a feature that
+        // forces a fallback.
         engine.setVolume(active.volume)
         engine.setKeyVolume(active.keyVolume)
         engine.setMouseVolume(active.mouseVolume)
@@ -581,6 +654,17 @@ final class AppModel {
         engine.setPianoMode(active.pianoModeEnabled, config: active.piano)
         engine.setGuitarMode(active.guitarModeEnabled, config: active.guitar)
         engine.applySpatial(active.spatial)
+        cached.setMasterVolume(active.volume)
+        cached.setKeyVolume(active.keyVolume)
+        cached.setMouseVolume(active.mouseVolume)
+        cached.setScrollVolume(active.scrollVolume)
+        cached.setMouseTheme(Theme.mouseVoice(id: active.mouseThemeID))
+        cached.setScrollTheme(Theme.scrollVoice(id: active.scrollThemeID))
+        // If we just switched to cached, pause the live engine immediately —
+        // otherwise its IO thread keeps spinning until the next emit (which
+        // would never come). Switching the other way is free: emit() calls
+        // engine.start() automatically.
+        if useCached { engine.pause() }
         // Trigger config diff: only push if a different profile loaded.
         if let old, old.id != active.id {
             triggers.update(active.triggers)
@@ -591,11 +675,14 @@ final class AppModel {
         if isCustom {
             if let pack = activePack {
                 engine.setKeySamplePack(pack)
+                cached.setKeySamplePack(pack)
             } else {
                 engine.setKeyTheme(Theme.builtIn(id: Theme.defaultID))
+                cached.setKeyTheme(Theme.builtIn(id: Theme.defaultID))
             }
         } else {
             engine.setKeyTheme(currentTheme)
+            cached.setKeyTheme(currentTheme)
         }
     }
 
@@ -653,10 +740,17 @@ final class AppModel {
             currentWPM = next
         }
         // Only maintain the history when the sparkline is actually
-        // visible — every append invalidates the array.
+        // visible — every append invalidates the array, which makes the
+        // smoothed-path renderer re-tween at display refresh rate. Once
+        // the chart has fully decayed to zero and the user is idle, stop
+        // appending: the visible chart is identical anyway.
         if wpmVizEnabled {
-            wpmHistory.append(currentWPM)
-            if wpmHistory.count > 80 { wpmHistory.removeFirst(wpmHistory.count - 80) }
+            let chartIdle = raw == 0 && currentWPM < 0.05 &&
+                wpmHistory.allSatisfy { $0 < 0.05 }
+            if !chartIdle {
+                wpmHistory.append(currentWPM)
+                if wpmHistory.count > 80 { wpmHistory.removeFirst(wpmHistory.count - 80) }
+            }
         }
         if statsEnabled && currentWPM > 0 {
             let oldPeak = stats.snapshot.peakWPM
@@ -676,11 +770,15 @@ final class AppModel {
         if abs(next - currentCPM) > 0.01 {
             currentCPM = next
         }
-        // Only maintain the history when the sparkline is actually
-        // visible — every append invalidates the array.
+        // See sampleWPM — freeze history once the chart has decayed so
+        // we stop driving the sparkline's per-frame redraw at idle.
         if cpmVizEnabled {
-            cpmHistory.append(currentCPM)
-            if cpmHistory.count > 80 { cpmHistory.removeFirst(cpmHistory.count - 80) }
+            let chartIdle = raw == 0 && currentCPM < 0.05 &&
+                cpmHistory.allSatisfy { $0 < 0.05 }
+            if !chartIdle {
+                cpmHistory.append(currentCPM)
+                if cpmHistory.count > 80 { cpmHistory.removeFirst(cpmHistory.count - 80) }
+            }
         }
         if statsEnabled && currentCPM > 0 {
             let oldPeak = stats.snapshot.peakCPM
@@ -816,21 +914,4 @@ final class AppModel {
         }
     }
 
-    func openSettingsWindow() {
-        if let win = settingsWindow, win.isVisible {
-            win.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-        let controller = NSHostingController(rootView: SettingsWindowView(model: self))
-        let win = NSWindow(contentViewController: controller)
-        win.title = "Clonk"
-        win.setContentSize(NSSize(width: 740, height: 580))
-        win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        win.minSize = NSSize(width: 580, height: 400)
-        win.center()
-        win.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        settingsWindow = win
-    }
 }

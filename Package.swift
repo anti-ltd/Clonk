@@ -28,5 +28,11 @@ let package = Package(
             dependencies: ["ClonkCore"],
             path: "Sources/Clonk"
         ),
+        // Unit tests — pure logic only (no UI, no menu bar).
+        .testTarget(
+            name: "ClonkCoreTests",
+            dependencies: ["ClonkCore"],
+            path: "Tests/ClonkCoreTests"
+        ),
     ]
 )

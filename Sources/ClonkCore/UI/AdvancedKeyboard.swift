@@ -51,13 +51,21 @@ enum KeyboardLayout {
          k(123, "←"), k(125, "↓"), k(124, "→")],
     ]
 
-    static func name(for keycode: Int) -> String {
+    // Flattened once: `name(for:)` is called on every keystroke (recordTyping,
+    // recentKeyEvents). The double-loop version was an O(rows × keys) scan;
+    // dictionary lookup is constant time.
+    private static let labelByKeycode: [Int: String] = {
+        var map: [Int: String] = [:]
         for row in rows {
-            for k in row where k.keycode == keycode {
-                return k.label == "space" ? "Space" : k.label
+            for k in row {
+                map[k.keycode] = k.label == "space" ? "Space" : k.label
             }
         }
-        return "Key \(keycode)"
+        return map
+    }()
+
+    static func name(for keycode: Int) -> String {
+        labelByKeycode[keycode] ?? "Key \(keycode)"
     }
 }
 
@@ -109,7 +117,10 @@ struct KeyboardEditor: View {
     @State private var selected: Int?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // `pressedKeys` is @ObservationIgnored — read the rate-limited tick
+        // so live highlights still refresh.
+        let _ = model.keyVizRev
+        return VStack(alignment: .leading, spacing: 4) {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(Array(KeyboardLayout.rows.enumerated()), id: \.offset) { _, row in
                     HStack(spacing: CGFloat(capGap)) {

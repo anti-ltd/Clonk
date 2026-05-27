@@ -17,8 +17,9 @@
 ![Platform](https://img.shields.io/badge/macOS%2026%20Tahoe-black?style=flat-square)
 ![Language](https://img.shields.io/badge/Swift%206.3-orange?style=flat-square&logo=swift)
 [![License](https://img.shields.io/badge/license-CLL%20v1.2-blue?style=flat-square)](LICENSE.md)
-![Bundle](https://img.shields.io/badge/bundle-1.5%20MB-brightgreen?style=flat-square)
-![CPU](https://img.shields.io/badge/idle%20CPU-%3C0.1%25-brightgreen?style=flat-square)
+![Bundle](https://img.shields.io/badge/bundle-2.6%20MB-brightgreen?style=flat-square)
+![CPU](https://img.shields.io/badge/idle%20CPU-0.00%25-brightgreen?style=flat-square)
+![Memory](https://img.shields.io/badge/memory-45%20MB-brightgreen?style=flat-square)
 
 `click · clack · clonk`
 
@@ -26,8 +27,7 @@
 
 ---
 
-> Inspired by [Klack](https://apps.apple.com/gb/app/klack/id6446206067?mt=12
-Klack), [FunKey](https://apps.apple.com/us/app/funkey-mechanical-keyboard-app/id6469420677?mt=12) — a fun idea. This is the free, open-source alternative.
+> Inspired by [Klack](https://apps.apple.com/gb/app/klack/id6446206067?mt=12) and [FunKey](https://apps.apple.com/us/app/funkey-mechanical-keyboard-app/id6469420677?mt=12) — a fun idea. This is the free, open-source alternative.
 
 ---
 
@@ -55,9 +55,9 @@ Klack), [FunKey](https://apps.apple.com/us/app/funkey-mechanical-keyboard-app/id
 
 ## What it is
 
-Clonk gives every keystroke a satisfying mechanical click. It sits in the menu bar, listens for keys and mouse clicks, and plays a sound — and **every sound is generated live by DSP. There are no audio files in the app.**
+Clonk plays a click on every keystroke. It lives in the menu bar, listens for keyboard and mouse events, and generates the sound on the fly — **there are no audio files in the app.**
 
-A keypress is a short noise burst (the switch impact) driving two bandpass *resonators* (the keycap, plate and case body), summed with a bright high-passed *transient* (the contact click). Resonated noise reads as a real "thock" — not a musical tone. Each voice is a different recipe of those parameters in [`Theme.swift`](Sources/Clonk/Theme.swift).
+A keypress is a short noise burst (the switch impact) passed through two bandpass *resonators* (the keycap, plate and case body), summed with a bright high-passed *transient* (the contact click). Resonated noise reads as a real "thock" rather than a musical tone. Each voice is a different recipe of those parameters in [`Theme.swift`](Sources/ClonkCore/Theme.swift).
 
 Built natively in Swift for macOS Tahoe — menu-bar agent, no Dock icon.
 
@@ -65,7 +65,7 @@ Built natively in Swift for macOS Tahoe — menu-bar agent, no Dock icon.
 
 ## Zero audio files
 
-Clonk ships with no samples and no recordings. Every click is synthesised live from a handful of numbers. Clicks are pre-rendered once when a theme is selected; a keypress just picks a ready buffer and schedules it on the next free voice — cheap enough for the fastest typist.
+Clonk ships with no samples and no recordings. Every click is synthesised from a handful of numbers. When you pick a voice, Clonk pre-renders a small pool of click buffers once; a keypress then picks a ready buffer and schedules it on the next free voice — cheap enough to keep up with the fastest typists.
 
 ---
 
@@ -81,15 +81,25 @@ Five voices, each modelled on a real switch archetype:
 | **Deep Thock** | Low, rounded, premium gasket-mount thock |
 | **Vintage Typewriter** | Loud, metallic high ping — buckling spring style |
 
-Wide keycaps (space, return, shift, tab, delete) get a deeper voice. Every press is randomly detuned and levelled a touch so fast typing never sounds robotic, and release clicks auto-suppress while you type quickly. Turn on **key release sound** for the second half of a real mechanical keypress.
+Wide keycaps (space, return, shift, tab, delete) get a deeper voice. Each press is randomly detuned and levelled so fast typing never sounds robotic, and release clicks auto-suppress while you type quickly. Turn on **key release sound** for the second half of a real mechanical keypress.
+
+---
+
+## Play modes
+
+Instead of a click, you can map keystrokes to musical notes:
+
+- **Piano** — keys play tuned piano notes; pick a scale, root and sustain.
+- **Guitar** — keys pluck a tuned guitar string with optional modifier sustain.
+- **Spatial audio** — pan clicks left to right across the keyboard.
 
 ---
 
 ## Bring your own sounds
 
-Clonk ships **zero audio files** — but you can import your own. A *sample pack* is just a folder of audio files (`wav`, `aiff`, `caf`, `mp3`, `m4a`, `flac`).
+Clonk ships zero audio files — but you can import your own. A *sample pack* is just a folder of audio files (`wav`, `aiff`, `caf`, `mp3`, `m4a`, `flac`).
 
-In the menu bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/counter-ltd/clonk/SamplePacks/`.
+In the menu-bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/counter-ltd/clonk/SamplePacks/`.
 
 ---
 
@@ -104,12 +114,17 @@ Optional floating widgets that visualise what you type — drag them anywhere, o
 
 <div align="center">
 <img src="Resources/screenshots/minimal.png" width="300" alt="Minimal overlay — only the keys you're pressing, fading out"> &nbsp;&nbsp; <img src="Resources/screenshots/wpm.png" width="300" alt="WPM overlay — a live words-per-minute counter and sparkline"><br>
-<sub><b>Minimal</b> — just the keys you're pressing, then they fade. &nbsp;·&nbsp; <b>WPM</b> — a live words-per-minute counter and sparkline.</sub>
+<sub><b>Minimal</b> — just the keys you're pressing, then they fade. &nbsp;·&nbsp; <b>WPM / CPM</b> — live words- or characters-per-minute, with a sparkline.</sub>
 </div>
 
 <div align="center">
 <img src="Resources/screenshots/piano.png" width="600" alt="Piano mode — keys mapped to notes across a full keyboard"><br>
 <sub><b>Piano</b> — map your keys to notes and play any app like an instrument.</sub>
+</div>
+
+<div align="center">
+<img src="Resources/screenshots/guitar.png" width="300" alt="Guitar mode — keys mapped to plucked strings"><br>
+<sub><b>Guitar</b> — pluck a tuned string on every keystroke.</sub>
 </div>
 
 ---
@@ -118,7 +133,7 @@ Optional floating widgets that visualise what you type — drag them anywhere, o
 
 **Profiles** keep a whole sound set under one name — a soft linear for writing, a sharp clicky blue for chat, your own sample pack for fun. Each profile remembers every setting (voices, volumes, overrides, overlays), and you switch between them in a click from the popover.
 
-**Sleep rules** mute Clonk on their own when you don't want it. Mix and match conditions — on battery or low battery, within set hours, when a particular app is in front, while you're idle, on an external keyboard, during a calendar event, or with multiple displays attached. Set them once and forget them.
+**Sleep rules** mute Clonk on their own when you don't want it. Mix and match conditions — on battery or low battery, within set hours, when a particular app is in front, while you're idle, on an external keyboard, during a calendar event, or with multiple displays attached.
 
 ---
 
@@ -126,12 +141,13 @@ Optional floating widgets that visualise what you type — drag them anywhere, o
 
 | File | Role |
 |------|------|
-| [`KeyMonitor.swift`](Sources/Clonk/KeyMonitor.swift) | Global `CGEventTap` — listen-only keyboard + mouse events |
-| [`Synth.swift`](Sources/Clonk/Synth.swift) | DSP — turns theme parameters into PCM click buffers |
-| [`SoundEngine.swift`](Sources/Clonk/SoundEngine.swift) | `AVAudioEngine` voice pool for polyphonic playback |
-| [`Theme.swift`](Sources/Clonk/Theme.swift) | The synthesis presets |
-| [`SamplePack.swift`](Sources/Clonk/SamplePack.swift) | User-imported sample pack loading |
-| [`AppModel.swift`](Sources/Clonk/AppModel.swift) | Settings + wiring |
+| [`KeyMonitor.swift`](Sources/ClonkCore/KeyMonitor.swift) | Global `CGEventTap` — listen-only keyboard + mouse events |
+| [`Synth.swift`](Sources/ClonkCore/Synth.swift) | DSP — turns theme parameters into PCM click buffers |
+| [`SoundEngine.swift`](Sources/ClonkCore/SoundEngine.swift) | `AVAudioEngine` voice pool for polyphonic playback |
+| [`Theme.swift`](Sources/ClonkCore/Theme.swift) | The synthesis presets |
+| [`SamplePack.swift`](Sources/ClonkCore/SamplePack.swift) | User-imported sample pack loading |
+| [`Piano.swift`](Sources/ClonkCore/Piano.swift) / [`Guitar.swift`](Sources/ClonkCore/Guitar.swift) | Tuned-note play modes |
+| [`AppModel.swift`](Sources/ClonkCore/AppModel.swift) | Settings + wiring |
 
 ---
 
@@ -145,23 +161,23 @@ Clonk needs the macOS **Accessibility** permission to know *when* a key is press
 
 Requires **macOS 26 (Tahoe)** and a recent Swift toolchain.
 
-Clonk depends on **[iUX-MacOS](../iUX-MacOS)** — our shared UX layer (settings popover, menu-bar
-host, overlay windows) — via a local path (`../iUX-MacOS`). Check it out as a sibling
-directory before building:
+Clonk depends on **[iUX-MacOS](../iUX-MacOS)** — our shared UX layer (settings popover, menu-bar host, overlay windows) — via a local path (`../iUX-MacOS`). Check it out as a sibling directory before building:
 
 ```
 Projects/
-├── clonk/   ← this repo
+├── clonk/      ← this repo
 └── iUX-MacOS/  ← shared macOS UX library
 ```
 
 ```bash
 git clone git@github.com:anti-ltd/iUX-MacOS.git ../iUX-MacOS   # one-time: place iUX-MacOS beside clonk
 
-make run      # build, bundle Clonk.app, launch it
-make app      # build the .app bundle (with icon) into build/
-make build    # just compile the release binary
-make clean    # remove build artifacts
+make run        # build, bundle Clonk.app, launch it
+make app        # build the .app bundle (with icon) into build/
+make build      # just compile the release binary
+make dmg        # package the signed .app into a drag-to-install disk image
+make build-mas  # Mac App Store .pkg (requires Apple distribution certs)
+make clean      # remove build artifacts
 ```
 
 Clonk lives entirely in the menu bar — click its icon for the popover with every setting, a sound playground, and the Accessibility prompt (System Settings › Privacy & Security › Accessibility). Grant it, and start typing.

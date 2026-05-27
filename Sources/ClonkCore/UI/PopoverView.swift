@@ -15,16 +15,10 @@ struct PopoverView: View {
     }
 
     var body: some View {
-        SettingsPopover(selection: $tab, trailing: {
-            Button {
-                model.openSettingsWindow()
-            } label: {
-                Image(systemName: "macwindow")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Open in window")
-        }) { t in
+        // `popOutWindowID` is iUX's built-in pop-out: it places the macwindow
+        // button on the right of the tab bar and opens the matching `Window`
+        // scene (declared in ClonkApp) on click.
+        SettingsPopover(selection: $tab, popOutWindowID: ClonkModule.windowID) { t in
             ClonkTabContent(model: model, tab: t)
         }
     }
@@ -71,6 +65,7 @@ struct ClonkTabContent: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .frame(maxWidth: .infinity)
 
             settingsSubTabContent
         }
@@ -114,9 +109,47 @@ struct ClonkTabContent: View {
                 Divider()
                 SliderRow.percent("Scroll", value: $model.scrollVolume)
             }
+            CardSection("Engine") {
+                HStack(spacing: 10) {
+                    Text("Playback").frame(width: 108, alignment: .leading)
+                    Spacer(minLength: 0)
+                    Picker("", selection: $model.enginePlaybackMode) {
+                        ForEach(EnginePlaybackMode.allCases) { Text($0.label).tag($0) }
+                    }
+                    .labelsHidden()
+                    .frame(width: 200)
+                }
+                .padding(.vertical, 6)
+                Text(engineModeHint)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             SpatialSection(model: model)
         case .visual:
             VisualizersSection(model: model)
+        case .advanced:
+            AdvancedTab(model: model)
+        }
+    }
+
+    // Help text under the engine playback picker. Surfaces the auto-fallback
+    // so users aren't confused when Cached doesn't actually save CPU because
+    // they have piano / guitar / spatial / overrides on.
+    private var engineModeHint: String {
+        let forces: [String] = [
+            model.pianoModeEnabled ? "Piano mode" : nil,
+            model.guitarModeEnabled ? "Guitar mode" : nil,
+            model.spatialConfig.enabled ? "Spatial audio" : nil,
+            (model.keyboardAdvancedEnabled && !model.advanced.keys.isEmpty) ? "Keyboard overrides" : nil,
+            (model.mouseAdvancedEnabled && !model.advanced.mouse.isEmpty) ? "Mouse overrides" : nil,
+            (model.scrollAdvancedEnabled && !model.advanced.scroll.isEmpty) ? "Scroll overrides" : nil,
+        ].compactMap { $0 }
+        if model.enginePlaybackMode == .cached && !forces.isEmpty {
+            return "Live engine is in use because \(forces.joined(separator: ", ")) need real-time processing."
+        }
+        switch model.enginePlaybackMode {
+        case .cached: return "Plays pre-rendered clicks via a lightweight player pool. Idle CPU near zero."
+        case .live:   return "Real-time audio engine — needed for piano, guitar, spatial, and per-key overrides."
         }
     }
 
@@ -245,7 +278,13 @@ struct ClonkTabContent: View {
                         .foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Clonk").font(.headline)
-                        Text("Version 1.0").font(.caption).foregroundStyle(.secondary)
+                        // Pull the version from the bundle so it tracks
+                        // CFBundleShortVersionString on every release; fall
+                        // back to "1.0" for non-bundled / dev runs.
+                        let version = Bundle.main
+                            .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+                        Text("Anti Limited - Version \(version)")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if model.isMuted {
@@ -529,6 +568,59 @@ private struct VisualizersSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+}
+
+// MARK: - Advanced tab
+
+private struct AdvancedTab: View {
+    @Bindable var model: AppModel
+
+    // Smoothed press interval → approximate characters/sec for the live
+    // hint under the slider. Mirrors AppModel.updateTypingRate's EMA.
+    private var suppressionCPS: Double {
+        let s = model.releaseSuppressInterval
+        guard s > 0 else { return 0 }
+        return 1.0 / s
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            CardSection("Performance") {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Release click suppression").font(.callout)
+                        Spacer()
+                        Text("\(Int(model.releaseSuppressInterval * 1000)) ms")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 60, alignment: .trailing)
+                    }
+                    Slider(value: $model.releaseSuppressInterval, in: 0...0.25)
+                }
+                .padding(.vertical, 4)
+                Text(suppressionHint)
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("These settings tune Clonk's audio engine for lower CPU during fast typing. Defaults are tuned for most users — adjust only if you notice missing or doubled clicks.")
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var suppressionHint: String {
+        if model.releaseSuppressInterval <= 0.0005 {
+            return "Always play the release click. Highest fidelity, highest CPU at speed."
+        }
+        let cps = suppressionCPS
+        let rate: String
+        if cps >= 100 {
+            rate = "very fast typing"
+        } else {
+            rate = String(format: "~%.0f keys/sec", cps)
+        }
+        return "Skip the release click when typing faster than \(rate). Cuts audio-engine load when clicks would overlap anyway."
     }
 }
 
@@ -1020,27 +1112,68 @@ private struct DailyBarChart: View {
 
 struct SettingsWindowView: View {
     @Bindable var model: AppModel
+    // Selection lives here, not inside iUX's `SettingsWindow` — the generic
+    // wrapper can't host the `@State` without `NavigationSplitView` dropping
+    // sidebar clicks (rows render, but selection never updates).
     @State private var selection: PopoverTab? = .settings
 
     var body: some View {
-        SidebarNavigator(
-            title: "Clonk",
-            items: PopoverTab.allCases,
-            selection: $selection
-        ) { item in
-            ScrollView {
-                ClonkTabContent(model: model, tab: item)
-                    .padding(UX.popoverPadding)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .navigationTitle(item.title)
+        // iUX's `SettingsWindow` wraps `SidebarNavigator` around the same
+        // `(Tab) -> View` builder the popover uses, so the per-tab body is
+        // written once in `ClonkTabContent`.
+        SettingsWindow(title: "Clonk", selection: $selection) { tab in
+            ClonkTabContent(model: model, tab: tab)
         }
+        // Capture SwiftUI's `OpenWindowAction` so AppKit code (the menu-bar
+        // "Settings" item) can open this window. The capture runs during
+        // SwiftUI's brief auto-open at launch — `AppDelegate` closes the
+        // window right after, but the captured action stays valid.
+        .background(ClonkWindowOpenerBridge())
+    }
+}
+
+/// Bridges SwiftUI's `@Environment(\.openWindow)` to AppKit. AppKit menu
+/// actions can't reach the SwiftUI environment, so we stash the action into
+/// a `@MainActor` static at render time and call it from the AppDelegate.
+@MainActor
+public enum ClonkWindowOpener {
+    public static var action: OpenWindowAction?
+
+    /// Open the pop-out settings window and bring it forward. Safe to call
+    /// from anywhere on the main actor.
+    public static func open() {
+        guard let action else { NSSound.beep(); return }
+        action(id: ClonkModule.windowID)
+        NSApp.activate(ignoringOtherApps: true)
+        // `openWindow` brings the window visible but not key when the call
+        // chain is an NSMenu action (the menu had first-responder), and the
+        // `List`-based sidebar needs key status to hit-test. Same fix as
+        // the popover's pop-out button.
+        let id = ClonkModule.windowID
+        DispatchQueue.main.async {
+            for window in NSApp.windows {
+                guard let raw = window.identifier?.rawValue, raw.contains(id) else { continue }
+                window.makeKeyAndOrderFront(nil)
+                break
+            }
+        }
+    }
+}
+
+private struct ClonkWindowOpenerBridge: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onAppear { ClonkWindowOpener.action = openWindow }
     }
 }
 
 // MARK: - Tabs
 
-enum PopoverTab: String, CaseIterable, Identifiable, SettingsTab, SidebarItem {
+// `SettingsTab` already refines `SidebarItem`, so one conformance covers both
+// the popover's segmented bar and the window's sidebar.
+enum PopoverTab: String, CaseIterable, Identifiable, SettingsTab {
     case settings, sounds, triggers, profiles, stats, about
     var id: String { rawValue }
 
@@ -1069,13 +1202,14 @@ enum PopoverTab: String, CaseIterable, Identifiable, SettingsTab, SidebarItem {
 // MARK: - Settings subtabs
 
 private enum SettingsSubTab: String, CaseIterable, Identifiable {
-    case input, audio, visual
+    case input, audio, visual, advanced
     var id: String { rawValue }
     var title: String {
         switch self {
         case .input: return "Input"
         case .audio: return "Audio"
         case .visual: return "Visual"
+        case .advanced: return "Advanced"
         }
     }
 }

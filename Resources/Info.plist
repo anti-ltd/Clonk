@@ -2,37 +2,37 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Clonk</string>
 	<key>CFBundleExecutable</key>
 	<string>Clonk</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>ltd.anti.clonk</string>
 	<key>CFBundleName</key>
 	<string>Clonk</string>
-	<key>CFBundleDisplayName</key>
-	<string>Clonk for Mac</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>3</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>26.0</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
-	<key>NSHumanReadableCopyright</key>
-	<string>Clonk</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Clonk reads your Calendar to pause clicks during meetings. Events are read only — nothing is sent or stored.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>Clonk reads your Calendar to pause clicks during meetings. Events are read only — nothing is sent or stored.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Clonk reads your Calendar to pause clicks during meetings. Events are read only — nothing is sent or stored.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Clonk reads your Calendar to pause clicks during meetings. Events are read only — nothing is sent or stored.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Anti Limited. Released under the Commons Limited License v1.2.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 </dict>
 </plist>

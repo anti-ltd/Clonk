@@ -16,6 +16,10 @@ public final class ClonkModule: AppModule {
     public static let displayName = "Clonk"
     public static let symbolName  = "keyboard"
 
+    /// Scene identifier for the settings `Window`. Use with
+    /// `@Environment(\.openWindow)` from any view inside the app.
+    public static let windowID    = "clonk-settings"
+
     // MARK: - Core
 
     private let model: AppModel
@@ -45,5 +49,13 @@ public final class ClonkModule: AppModule {
     /// A self-contained settings view ready to drop into a sidebar or sheet.
     public func settingsView() -> AnyView {
         AnyView(PopoverView(model: model))
+    }
+
+    /// The sidebar-style settings view, for embedding in a SwiftUI `Window`
+    /// scene. The Scene gives `NavigationSplitView` the chrome it needs
+    /// (unified toolbar, transparent titlebar, vibrant sidebar) — chrome a
+    /// hand-rolled `NSWindow(contentViewController:)` can't reproduce.
+    public func windowView() -> AnyView {
+        AnyView(SettingsWindowView(model: model))
     }
 }

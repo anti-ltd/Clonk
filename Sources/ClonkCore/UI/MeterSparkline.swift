@@ -59,7 +59,10 @@ struct MeterSparkline: View {
             }
             .frame(width: drawSize.width, height: drawSize.height)
             .offset(x: inset, y: inset)
-            .animation(.linear(duration: 0.25), value: values)
+            // No `.animation(value: values)` — samples arrive every 250 ms
+            // and tweening between them just makes SwiftUI re-render the
+            // smoothed path + gradient + glow at display refresh rate.
+            // Snap-render once per sample instead (4 Hz).
         }
     }
 
@@ -108,24 +111,19 @@ struct MeterSparkline: View {
     }
 }
 
+// Static head dot. A previous version pulsed with `repeatForever`, which
+// kept the layer tree composing every frame even when the sparkline was
+// otherwise idle. Not worth the CPU.
 private struct PulsingDot: View {
-    @State private var pulse = false
-
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.accentColor.opacity(0.45))
-                .frame(width: pulse ? 16 : 6, height: pulse ? 16 : 6)
-                .opacity(pulse ? 0 : 0.9)
+                .fill(Color.accentColor.opacity(0.35))
+                .frame(width: 10, height: 10)
             Circle()
                 .fill(Color.white)
                 .frame(width: 4, height: 4)
                 .shadow(color: Color.accentColor, radius: 4)
-        }
-        .onAppear {
-            withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) {
-                pulse = true
-            }
         }
     }
 }
