@@ -7,11 +7,12 @@ ICNS     = Resources/AppIcon.icns
 ENTITLEMENTS     = Resources/Clonk.entitlements
 MAS_ENTITLEMENTS = Resources/Clonk.mas.entitlements
 MAS_PKG          = build/$(APP_NAME).pkg
+MAS_PROFILE      ?= Resources/Clonk_MAS.provisionprofile
 
 # Set these to your Apple distribution identities before running build-mas.
 # Find them with: security find-identity -v -p codesigning
-MAS_SIGN_APP ?= 3rd Party Mac Developer Application: $(shell git config user.name)
-MAS_SIGN_PKG ?= 3rd Party Mac Developer Installer: $(shell git config user.name)
+MAS_SIGN_APP ?= 3rd Party Mac Developer Application: William Whitehouse (8248296AJX)
+MAS_SIGN_PKG ?= 3rd Party Mac Developer Installer: William Whitehouse (8248296AJX)
 
 # Stable signing identity so macOS keeps the Accessibility/TCC grant (the
 # keyboard event tap) across rebuilds. Falls back to ad-hoc ("-") on machines
@@ -85,8 +86,11 @@ build-mas: icon
 	cp Resources/Info.plist $(BUNDLE)/Contents/Info.plist
 	cp $(ICNS) $(BUNDLE)/Contents/Resources/AppIcon.icns
 	cp Resources/PrivacyInfo.xcprivacy $(BUNDLE)/Contents/Resources/PrivacyInfo.xcprivacy
+	cp $(MAS_PROFILE) $(BUNDLE)/Contents/embedded.provisionprofile
+	xattr -cr $(BUNDLE)
 	codesign --force --deep \
 		--sign "$(MAS_SIGN_APP)" \
+		--identifier ltd.anti.clonk \
 		--entitlements $(MAS_ENTITLEMENTS) \
 		--options runtime \
 		$(BUNDLE)

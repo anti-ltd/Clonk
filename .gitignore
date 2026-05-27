@@ -4,3 +4,4 @@ build/
 Resources/AppIcon.icns
 *.xcodeproj
 .swiftpm/
+*.provisionprofile
