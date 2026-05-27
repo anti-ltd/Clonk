@@ -1,5 +1,5 @@
 import SwiftUI
-import iUX
+import iUX_MacOS
 
 /// The single public surface for embedding Clonk in a bundle.
 ///

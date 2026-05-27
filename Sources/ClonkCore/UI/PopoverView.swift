@@ -1,14 +1,13 @@
 import AppKit
 import SwiftUI
-import iUX
+import iUX_MacOS
 
 // The menu bar popover — Clonk's whole UI. The popover sizes its height
 // to whichever tab is open. Chrome (tab bar, width, padding, cards, rows) comes
-// from iUX so it matches every other app; only the per-tab content lives here.
+// from iUX-MacOS so it matches every other app; only the per-tab content lives here.
 struct PopoverView: View {
     @Bindable var model: AppModel
     @State private var tab: PopoverTab
-    @State private var importError: String?
 
     init(model: AppModel, initialTab: PopoverTab? = nil) {
         self._model = Bindable(wrappedValue: model)
@@ -16,21 +15,43 @@ struct PopoverView: View {
     }
 
     var body: some View {
-        SettingsPopover(selection: $tab) { _ in
-            tabContent
+        SettingsPopover(selection: $tab, trailing: {
+            Button {
+                model.openSettingsWindow()
+            } label: {
+                Image(systemName: "macwindow")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Open in window")
+        }) { t in
+            ClonkTabContent(model: model, tab: t)
         }
-        .alert("Import Failed", isPresented: Binding(
-            get: { importError != nil },
-            set: { if !$0 { importError = nil } }
-        )) {
-            Button("OK", role: .cancel) { importError = nil }
-        } message: {
-            Text(importError ?? "")
-        }
+    }
+}
+
+// MARK: - Shared tab content (used by both the popover and the sidebar window)
+
+struct ClonkTabContent: View {
+    @Bindable var model: AppModel
+    let tab: PopoverTab
+    @State private var importError: String?
+    @State private var settingsSubTab: SettingsSubTab = .input
+
+    var body: some View {
+        Group { content }
+            .alert("Import Failed", isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )) {
+                Button("OK", role: .cancel) { importError = nil }
+            } message: {
+                Text(importError ?? "")
+            }
     }
 
     @ViewBuilder
-    private var tabContent: some View {
+    private var content: some View {
         switch tab {
         case .settings: settingsTab
         case .sounds: soundsTab
@@ -41,10 +62,24 @@ struct PopoverView: View {
         }
     }
 
-    // MARK: - Settings
+    // MARK: - Settings (with subtabs)
 
     private var settingsTab: some View {
         VStack(alignment: .leading, spacing: 14) {
+            Picker("", selection: $settingsSubTab) {
+                ForEach(SettingsSubTab.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            settingsSubTabContent
+        }
+    }
+
+    @ViewBuilder
+    private var settingsSubTabContent: some View {
+        switch settingsSubTab {
+        case .input:
             CardSection("Keyboard") {
                 ToggleRow("Press sound", isOn: $model.keySoundEnabled)
                 Divider()
@@ -69,6 +104,7 @@ struct PopoverView: View {
                 .padding(.vertical, 6)
                 .disabled(!model.scrollSoundEnabled)
             }
+        case .audio:
             CardSection("Volume") {
                 SliderRow.percent("Master", value: $model.volume)
                 Divider()
@@ -79,6 +115,7 @@ struct PopoverView: View {
                 SliderRow.percent("Scroll", value: $model.scrollVolume)
             }
             SpatialSection(model: model)
+        case .visual:
             VisualizersSection(model: model)
         }
     }
@@ -895,7 +932,6 @@ private struct ProfilesTab: View {
                     .padding(.vertical, 4)
                 }
             }
-
         }
     }
 }
@@ -980,9 +1016,31 @@ private struct DailyBarChart: View {
     }
 }
 
+// MARK: - Settings window (sidebar layout)
+
+struct SettingsWindowView: View {
+    @Bindable var model: AppModel
+    @State private var selection: PopoverTab? = .settings
+
+    var body: some View {
+        SidebarNavigator(
+            title: "Clonk",
+            items: PopoverTab.allCases,
+            selection: $selection
+        ) { item in
+            ScrollView {
+                ClonkTabContent(model: model, tab: item)
+                    .padding(UX.popoverPadding)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .navigationTitle(item.title)
+        }
+    }
+}
+
 // MARK: - Tabs
 
-enum PopoverTab: String, CaseIterable, Identifiable, SettingsTab {
+enum PopoverTab: String, CaseIterable, Identifiable, SettingsTab, SidebarItem {
     case settings, sounds, triggers, profiles, stats, about
     var id: String { rawValue }
 
@@ -1004,6 +1062,20 @@ enum PopoverTab: String, CaseIterable, Identifiable, SettingsTab {
         case .profiles: return "person.crop.circle"
         case .stats: return "chart.bar"
         case .about: return "info.circle"
+        }
+    }
+}
+
+// MARK: - Settings subtabs
+
+private enum SettingsSubTab: String, CaseIterable, Identifiable {
+    case input, audio, visual
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .input: return "Input"
+        case .audio: return "Audio"
+        case .visual: return "Visual"
         }
     }
 }

@@ -102,9 +102,8 @@ build-mas: icon
 	@echo "Upload: xcrun altool --upload-package $(MAS_PKG) --type osx --apiKey <key> --apiIssuer <issuer>"
 
 screenshot: app
-	@mkdir -p assets
-	$(APPBIN) profile --app "$(BUNDLE)" --out assets/benchmark.png
-	@echo "Screenshot: assets/benchmark.png"
+	$(APPBIN) profile --app "$(BUNDLE)" --out Resources/benchmark.png
+	@echo "Screenshot: Resources/benchmark.png"
 
 clean:
 	rm -rf .build build

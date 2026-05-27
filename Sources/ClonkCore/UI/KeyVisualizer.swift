@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import iUX
+import iUX_MacOS
 
 // Style for the key visualizer overlay.
 //   .full     — full mini-keyboard, pressed keys highlighted.

@@ -1,5 +1,5 @@
 import SwiftUI
-import iUX
+import iUX_MacOS
 
 // Visual keyboard for the Advanced per-key editor. Click a cap → assign a
 // custom voice + pitch for that one keycode.

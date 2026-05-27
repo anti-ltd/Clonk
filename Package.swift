@@ -13,13 +13,13 @@ let package = Package(
     ],
     dependencies: [
         // Shared UX layer — settings popover, menu-bar host and overlay windows.
-        .package(path: "../iUX"),
+        .package(path: "../iUX-MacOS"),
     ],
     targets: [
         // All business logic, DSP, and settings UI. No icon, no menu-bar item.
         .target(
             name: "ClonkCore",
-            dependencies: ["iUX"],
+            dependencies: ["iUX-MacOS"],
             path: "Sources/ClonkCore"
         ),
         // Standalone entry point: AppDelegate, menu-bar controller, icon renderer.

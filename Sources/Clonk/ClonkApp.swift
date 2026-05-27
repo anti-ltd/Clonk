@@ -1,12 +1,12 @@
 import AppKit
 import SwiftUI
-import iUX
+import iUX_MacOS
 import ClonkCore
 
 // Clonk — a mechanical keyboard sound simulator for macOS.
 //
 // Structure:
-//   • MenuBarController — iUX's menu bar host. Left-click toggles the popover;
+//   • MenuBarController — iUX-MacOS's menu bar host. Left-click toggles the popover;
 //                         right-click opens a small AppKit menu (Quit, etc.).
 //   • AppModel          — owns the sound engine, the global key listener, and
 //                         every user setting.

@@ -1,5 +1,5 @@
 import SwiftUI
-import iUX
+import iUX_MacOS
 
 // Floating WPM readout. Big number + smoothed rolling area chart pulled
 // from AppModel.wpmHistory (sampled 4×/sec).

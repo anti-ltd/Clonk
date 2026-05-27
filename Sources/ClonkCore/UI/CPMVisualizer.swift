@@ -1,5 +1,5 @@
 import SwiftUI
-import iUX
+import iUX_MacOS
 
 // Floating clicks-per-minute readout. Mirror of WPMVisualizerView, fed
 // from AppModel.cpmHistory (sampled 4×/sec).

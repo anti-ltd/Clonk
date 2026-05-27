@@ -1,8 +1,9 @@
 import AppKit
 import Carbon.HIToolbox
-import iUX
+import iUX_MacOS
 import Foundation
 import Observation
+import SwiftUI
 
 // Central controller: owns the sound engine and the global key listener,
 // holds all user settings, and keeps both wired together.
@@ -36,6 +37,7 @@ final class AppModel {
     @ObservationIgnored private var keyVizWindow: OverlayWindow<KeyVisualizerView>?
     @ObservationIgnored private var wpmVizWindow: OverlayWindow<WPMVisualizerView>?
     @ObservationIgnored private var cpmVizWindow: OverlayWindow<CPMVisualizerView>?
+    @ObservationIgnored private var settingsWindow: NSWindow?
 
     // Slider 0…1 mapped to detent size — low sensitivity = sparse ticks.
     private var scrollDetent: Double { 60.0 - active.scrollSensitivity * 54.0 }
@@ -812,5 +814,23 @@ final class AppModel {
             cpmVizWindow?.orderOut(nil)
             cpmVizWindow = nil
         }
+    }
+
+    func openSettingsWindow() {
+        if let win = settingsWindow, win.isVisible {
+            win.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let controller = NSHostingController(rootView: SettingsWindowView(model: self))
+        let win = NSWindow(contentViewController: controller)
+        win.title = "Clonk"
+        win.setContentSize(NSSize(width: 740, height: 580))
+        win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        win.minSize = NSSize(width: 580, height: 400)
+        win.center()
+        win.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow = win
     }
 }

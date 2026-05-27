@@ -1,5 +1,5 @@
 import SwiftUI
-import iUX
+import iUX_MacOS
 
 // Per-button mouse override list. Three rows: left / right / middle.
 struct MouseAdvancedEditor: View {
