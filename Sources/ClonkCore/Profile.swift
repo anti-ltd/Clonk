@@ -5,7 +5,7 @@ import Foundation
 // instantly. The active profile ID is remembered across launches.
 //
 // Storage: one JSON file per profile under
-//   ~/Library/Application Support/counter-ltd/clonk/Profiles/<id>.json
+//   ~/Library/Application Support/anti-ltd/clonk/Profiles/<id>.json
 // Plus a sidecar "active" file holding the current ID.
 struct Profile: Codable, Identifiable, Equatable {
     var id: String

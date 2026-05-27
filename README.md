@@ -99,7 +99,7 @@ Instead of a click, you can map keystrokes to musical notes:
 
 Clonk ships zero audio files — but you can import your own. A *sample pack* is just a folder of audio files (`wav`, `aiff`, `caf`, `mp3`, `m4a`, `flac`).
 
-In the menu-bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/counter-ltd/clonk/SamplePacks/`.
+In the menu-bar popover, **Keyboard Sound → Import Folder…**, pick a folder, and Clonk plays a random file from it on every keystroke. Packs are copied into `~/Library/Application Support/anti-ltd/clonk/SamplePacks/`.
 
 ---
 
@@ -153,7 +153,9 @@ Optional floating widgets that visualise what you type — drag them anywhere, o
 
 ## Privacy
 
-Clonk needs the macOS **Accessibility** permission to know *when* a key is pressed. It uses a listen-only event tap — it never modifies or swallows your input, and **it does not see, record, store, or transmit *what* you type.** Sound is synthesised on-device. Nothing leaves your Mac. No analytics · no tracking · no ads · no accounts · no network.
+Clonk needs the macOS **Accessibility** permission to know *when* a key is pressed. It uses a listen-only event tap — it never modifies or swallows your input, and **it does not see, record, store, or transmit *what* you type.** Sound is synthesised on-device. No analytics · no tracking · no ads · no accounts · no background network.
+
+The only network call Clonk ever makes is when you tap **Check for updates** in *About* — a single GET to `https://anti.ltd/api/version?app=clonk` that returns the latest released version. No identifiers, no payload, no headers beyond `Accept: application/json`.
 
 ---
 

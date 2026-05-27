@@ -14,6 +14,17 @@ MAS_PROFILE      ?= Resources/Clonk_MAS.provisionprofile
 MAS_SIGN_APP ?= 3rd Party Mac Developer Application: William Whitehouse (8248296AJX)
 MAS_SIGN_PKG ?= 3rd Party Mac Developer Installer: William Whitehouse (8248296AJX)
 
+# Developer ID identity for direct-distribution (website / DMG) builds. This
+# is different from the MAS identity above — Gatekeeper requires Developer ID
+# Application signing + notarization for download-and-run binaries.
+DEVID_SIGN_APP ?= Developer ID Application: William Whitehouse (8248296AJX)
+
+# App Store Connect API key for notarytool. The .p8 lives outside the repo;
+# memory: KZ765P9ZHP / issuer 66eec4bc-6987-480b-9af2-c26ea01d2ed2.
+NOTARY_KEY_ID  ?= KZ765P9ZHP
+NOTARY_ISSUER  ?= 66eec4bc-6987-480b-9af2-c26ea01d2ed2
+NOTARY_KEY     ?= $(HOME)/.appstoreconnect/private_keys/AuthKey_$(NOTARY_KEY_ID).p8
+
 # Stable signing identity so macOS keeps the Accessibility/TCC grant (the
 # keyboard event tap) across rebuilds. Falls back to ad-hoc ("-") on machines
 # without the self-signed "Clonk Dev" cert. Create one once via Keychain Access
@@ -22,7 +33,7 @@ SIGN_ID := $(shell security find-certificate -c "Clonk Dev" >/dev/null 2>&1 && e
 
 APPBIN ?= ../app-arently/.build/release/app-arently
 
-.PHONY: all build icon app run dmg build-mas bump version clean screenshot test
+.PHONY: all build icon app run dmg build-mas bump version clean screenshot test dist dist-manifest
 
 all: app
 
@@ -124,6 +135,84 @@ screenshot: app
 
 test:
 	swift test
+
+# ──────────────────────────────────────────────────────────────────────────
+# Direct-distribution (website / DMG) build.
+#
+# Builds a Developer ID-signed, hardened-runtime, notarized, stapled DMG
+# ready to upload to R2 for paid customers. This is the *non-MAS* path:
+# Gatekeeper requires Developer ID + notarization for download-and-run apps,
+# distinct from the MAS pipeline above which uses 3rd Party Mac Developer.
+#
+# Outputs:
+#   build/Clonk-<version>.dmg   — notarized + stapled, customer-facing
+#   build/Clonk-<version>.json  — version manifest for binaries/<app>.json
+#
+# The Clonk Dev local-signing convenience does NOT apply here — Developer ID
+# is the only identity macOS will trust outside the App Store.
+DIST_VERSION := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
+DIST_DMG     = build/Clonk-$(DIST_VERSION).dmg
+DIST_JSON    = build/Clonk-$(DIST_VERSION).json
+
+dist: icon
+	@echo "── Direct-distribution build: Clonk $(DIST_VERSION) ──"
+	rm -rf $(BUNDLE) $(DIST_DMG) $(DIST_JSON)
+	mkdir -p $(BUNDLE)/Contents/MacOS $(BUNDLE)/Contents/Resources
+	cp $(BIN) $(BUNDLE)/Contents/MacOS/$(APP_NAME)
+	strip $(BUNDLE)/Contents/MacOS/$(APP_NAME)
+	cp Resources/Info.plist $(BUNDLE)/Contents/Info.plist
+	cp $(ICNS) $(BUNDLE)/Contents/Resources/AppIcon.icns
+	cp Resources/PrivacyInfo.xcprivacy $(BUNDLE)/Contents/Resources/PrivacyInfo.xcprivacy
+	xattr -cr $(BUNDLE)
+	@echo "── Signing with Developer ID + hardened runtime ──"
+	codesign --force --deep --timestamp \
+		--sign "$(DEVID_SIGN_APP)" \
+		--options runtime \
+		--entitlements $(ENTITLEMENTS) \
+		$(BUNDLE)
+	codesign --verify --strict --deep --verbose=2 $(BUNDLE)
+	@echo "── Building DMG ──"
+	rm -rf build/dmg
+	mkdir -p build/dmg
+	cp -R $(BUNDLE) build/dmg/
+	ln -s /Applications build/dmg/Applications
+	hdiutil create -volname "$(APP_NAME)" -srcfolder build/dmg -ov -format UDZO $(DIST_DMG)
+	rm -rf build/dmg
+	@echo "── Submitting to Apple notary service (may take a few minutes) ──"
+	xcrun notarytool submit $(DIST_DMG) \
+		--key $(NOTARY_KEY) \
+		--key-id $(NOTARY_KEY_ID) \
+		--issuer $(NOTARY_ISSUER) \
+		--wait
+	@echo "── Stapling notarization ticket ──"
+	xcrun stapler staple $(DIST_DMG)
+	xcrun stapler validate $(DIST_DMG)
+	spctl --assess --type open --context context:primary-signature --verbose=2 $(DIST_DMG) || true
+	@echo "── Writing version manifest ──"
+	$(MAKE) --no-print-directory dist-manifest
+	@echo ""
+	@echo "✓ Built $(DIST_DMG)"
+	@echo "✓ Manifest $(DIST_JSON)"
+	@echo ""
+	@echo "Upload to anti-ltd-binaries:"
+	@echo "  wrangler r2 object put anti-ltd-binaries/binaries/clonk.dmg  --file $(DIST_DMG)"
+	@echo "  wrangler r2 object put anti-ltd-binaries/binaries/clonk.json --file $(DIST_JSON) --content-type application/json"
+
+# Emits the binaries/clonk.json that the website serves at /api/version.
+# Shape per anti-ltd/src/worker/versions.js: version + optional metadata; the
+# Worker adds `app` and `downloadUrl` at response time.
+dist-manifest:
+	@SIZE=$$(stat -f %z $(DIST_DMG)); \
+	SHA=$$(shasum -a 256 $(DIST_DMG) | awk '{print $$1}'); \
+	RELEASED=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
+	MIN_OS=$$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" Resources/Info.plist); \
+	NOTES=$${CLONK_RELEASE_NOTES:-"Initial release."}; \
+	printf '{\n  "version": "%s",\n  "releasedAt": "%s",\n  "notes": "%s",\n  "minOS": "macOS %s",\n  "sha256": "%s",\n  "size": %d\n}\n' \
+		"$(DIST_VERSION)" "$$RELEASED" "$$NOTES" "$$MIN_OS" "$$SHA" "$$SIZE" \
+		> $(DIST_JSON)
+	@echo "  version  $(DIST_VERSION)"
+	@echo "  sha256   $$(shasum -a 256 $(DIST_DMG) | awk '{print $$1}')"
+	@echo "  size     $$(stat -f %z $(DIST_DMG)) bytes"
 
 clean:
 	rm -rf .build build

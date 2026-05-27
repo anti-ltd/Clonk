@@ -14,5 +14,9 @@
 	<!-- NSOpenPanel (sample pack import) + NSSavePanel (CSV export) -->
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
+	<!-- Outgoing HTTPS for the manual "Check for updates" button only.
+	     Fires only on user tap; no background polling, no telemetry. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

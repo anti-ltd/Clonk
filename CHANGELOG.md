@@ -22,6 +22,9 @@ First production release.
 - **On-screen overlays**: floating Keyboard, Minimal, WPM and CPM widgets.
 - **Sample-pack import**: drop a folder of audio files (wav, aiff, caf, mp3,
   m4a, flac) and Clonk plays a random sample on every keystroke.
+- **Manual "Check for updates"** in *About* — single user-initiated GET to
+  `https://anti.ltd/api/version?app=clonk`. No background polling and no
+  identifiers in the request.
 - Mac App Store distribution pipeline (`make build-mas`).
 - Drag-to-install DMG pipeline (`make dmg`).
 - Stable-signing path (`Clonk Dev` self-signed cert) so macOS keeps the
@@ -29,7 +32,9 @@ First production release.
 
 ### Security & privacy
 - Listen-only `CGEventTap` — Clonk never modifies or swallows input.
-- Zero network code. Nothing leaves the device.
+- No background network. The only outbound call is the user-tapped update
+  check above; the MAS build declares `com.apple.security.network.client`
+  solely to allow it.
 - Sandboxed MAS build; non-sandboxed direct-distribution build for the
   Accessibility-grant developer workflow.
 - Privacy manifest declares only `UserDefaults` (CA92.1).

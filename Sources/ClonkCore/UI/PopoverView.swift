@@ -52,7 +52,7 @@ struct ClonkTabContent: View {
         case .triggers: TriggersTab(model: model)
         case .profiles: ProfilesTab(model: model)
         case .stats: StatsTab(model: model)
-        case .about: aboutTab
+        case .about: AboutTab(model: model)
         }
     }
 
@@ -263,60 +263,6 @@ struct ClonkTabContent: View {
                 Text("Type and click here to test your sound.")
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.top, 4)
-            }
-        }
-    }
-
-    // MARK: - About
-
-    private var aboutTab: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            CardSection(nil) {
-                HStack(spacing: 10) {
-                    Image(systemName: "keyboard.fill")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(.tint)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Clonk").font(.headline)
-                        // Pull the version from the bundle so it tracks
-                        // CFBundleShortVersionString on every release; fall
-                        // back to "1.0" for non-bundled / dev runs.
-                        let version = Bundle.main
-                            .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-                        Text("Anti Limited - Version \(version)")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if model.isMuted {
-                        Label("Sleeping", systemImage: "moon.zzz.fill")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-            }
-            CardSection("Permissions") {
-                if model.accessibilityGranted {
-                    Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                } else {
-                    Label("Accessibility access needed", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text("Clonk needs permission to hear keystrokes so it can play a click. Sound is synthesised on your Mac — nothing is recorded, stored, or sent anywhere.")
-                        .font(.caption).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 2)
-                    HStack {
-                        Button("Request Access") { model.requestAccessibility() }
-                        Button("Open Settings…") { openAccessibilityPane() }
-                    }
-                    .padding(.top, 2)
-                }
-            }
-            CardSection(nil) {
-                HStack {
-                    Spacer()
-                    Button("Quit Clonk") { NSApplication.shared.terminate(nil) }
-                        .keyboardShortcut("q", modifiers: .command)
-                }
             }
         }
     }
@@ -966,6 +912,156 @@ private struct IdleEditor: View {
 }
 
 // MARK: - Profiles tab
+
+// MARK: - About tab
+
+// Owns its own state for the manual update check. There is no background
+// polling; nothing fires until the user taps "Check for updates".
+private struct AboutTab: View {
+    @Bindable var model: AppModel
+    @State private var checkState: UpdateCheckState = .idle
+
+    private enum UpdateCheckState: Equatable {
+        case idle
+        case checking
+        case upToDate(latest: String)
+        case updateAvailable(VersionInfo)
+        case failed(String)
+    }
+
+    private var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            CardSection(nil) {
+                HStack(spacing: 10) {
+                    Image(systemName: "keyboard.fill")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundStyle(.tint)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Clonk").font(.headline)
+                        // Pull from the bundle so it tracks
+                        // CFBundleShortVersionString on every release.
+                        Text("Anti Limited - Version \(currentVersion)")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if model.isMuted {
+                        Label("Sleeping", systemImage: "moon.zzz.fill")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            CardSection("Updates") {
+                HStack {
+                    Button(action: runCheck) {
+                        if case .checking = checkState {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.small)
+                                Text("Checking…")
+                            }
+                        } else {
+                            Text("Check for updates")
+                        }
+                    }
+                    .disabled(checkState == .checking)
+                    Spacer()
+                }
+                updateStatusView
+            }
+
+            CardSection("Permissions") {
+                if model.accessibilityGranted {
+                    Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    Label("Accessibility access needed", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Clonk needs permission to hear keystrokes so it can play a click. Sound is synthesised on your Mac — nothing is recorded, stored, or sent anywhere.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                    HStack {
+                        Button("Request Access") { model.requestAccessibility() }
+                        Button("Open Settings…") { openAccessibilityPane() }
+                    }
+                    .padding(.top, 2)
+                }
+            }
+
+            CardSection(nil) {
+                HStack {
+                    Spacer()
+                    Button("Quit Clonk") { NSApplication.shared.terminate(nil) }
+                        .keyboardShortcut("q", modifiers: .command)
+                }
+            }
+        }
+    }
+
+    // MARK: - Update status rendering
+
+    @ViewBuilder
+    private var updateStatusView: some View {
+        switch checkState {
+        case .idle, .checking:
+            EmptyView()
+        case .upToDate(let latest):
+            Label("Up to date (\(latest))", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .font(.callout)
+                .padding(.top, 2)
+        case .updateAvailable(let info):
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Update available: \(info.version)", systemImage: "arrow.down.circle.fill")
+                    .foregroundStyle(.tint)
+                    .font(.callout)
+                if let notes = info.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let url = info.resolvedDownloadURL() {
+                    Button("Download…") { NSWorkspace.shared.open(url) }
+                        .padding(.top, 2)
+                }
+            }
+            .padding(.top, 4)
+        case .failed(let message):
+            Label("Check failed: \(message)", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.caption)
+                .padding(.top, 2)
+        }
+    }
+
+    // MARK: - Actions
+
+    private func runCheck() {
+        checkState = .checking
+        let local = currentVersion
+        Task { @MainActor in
+            do {
+                let info = try await UpdateChecker.fetch()
+                if UpdateChecker.isNewer(info.version, than: local) {
+                    checkState = .updateAvailable(info)
+                } else {
+                    checkState = .upToDate(latest: info.version)
+                }
+            } catch {
+                checkState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func openAccessibilityPane() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+        NSWorkspace.shared.open(url)
+    }
+}
 
 private struct ProfilesTab: View {
     @Bindable var model: AppModel
