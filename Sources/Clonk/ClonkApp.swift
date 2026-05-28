@@ -34,6 +34,17 @@ struct ClonkApp: App {
         .defaultSize(width: 740, height: 580)
         .windowToolbarStyle(.unified)
 
+        #if CLONK_SHOWCASE
+        // Reel showcase — only in `--showcase` builds. See Sources/ClonkCore/Showcase.
+        Window("Clonk Reel", id: "clonk-reel") {
+            ReelSceneView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+        #endif
+
         Settings { EmptyView() }
     }
 }
@@ -89,11 +100,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // brought it up, matched by `NSWindow.identifier` (SwiftUI sets it
         // from the scene id). A blanket close would also kill the status
         // item's backing window and the menu bar would stop responding.
-        let targetID = ClonkModule.windowID
+        #if CLONK_SHOWCASE
+        let idsToClose = [ClonkModule.windowID, "clonk-reel"]
+        #else
+        let idsToClose = [ClonkModule.windowID]
+        #endif
         DispatchQueue.main.async {
             for window in NSApp.windows {
-                guard let id = window.identifier?.rawValue, id.contains(targetID) else { continue }
-                window.close()
+                guard let id = window.identifier?.rawValue else { continue }
+                if idsToClose.contains(where: { id.contains($0) }) { window.close() }
             }
         }
     }
@@ -106,6 +121,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             $0.target = self
             $0.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         })
+        #if CLONK_SHOWCASE
+        // Reel showcase — only in `--showcase` builds.
+        menu.addItem(NSMenuItem(
+            title: "Reel Showcase", action: #selector(menuReel), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "video.fill", accessibilityDescription: nil)
+        })
+        #endif
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit", action: #selector(menuQuit), keyEquivalent: "q"
@@ -119,6 +143,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func menuSettings() {
         ClonkWindowOpener.open()
     }
+
+    #if CLONK_SHOWCASE
+    @objc private func menuReel() {
+        ClonkReelWindowOpener.open()
+    }
+    #endif
 
     @objc private func menuQuit() {
         NSApplication.shared.terminate(nil)

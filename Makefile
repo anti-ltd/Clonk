@@ -33,12 +33,29 @@ SIGN_ID := $(shell security find-certificate -c "Clonk Dev" >/dev/null 2>&1 && e
 
 APPBIN ?= ../app-arently/.build/release/app-arently
 
+# Reel showcase — pass SHOWCASE=1 to compile in the temporary "Clonk Reel"
+# window, its menu-bar item, and the ScreenCaptureKit recorder (all under
+# Sources/ClonkCore/Showcase/, gated by the CLONK_SHOWCASE flag). Off by
+# default so production builds (app, dmg, dist, build-mas) never ship it.
+#   make run SHOWCASE=1      # showcase build
+#   make run                 # normal build
+ifdef SHOWCASE
+SWIFT_FLAGS += -Xswiftc -DCLONK_SHOWCASE
+endif
+
+# Injects the screen-recording usage string the recorder needs into a copied
+# bundle Info.plist — but only for SHOWCASE builds, so the shipped plist stays
+# clean. Expands to nothing when SHOWCASE is unset. $(1) = path to Info.plist.
+define add_showcase_plist_keys
+$(if $(SHOWCASE),/usr/libexec/PlistBuddy -c "Add :NSScreenCaptureUsageDescription string Clonk uses screen recording to export the reel showcase video." "$(1)")
+endef
+
 .PHONY: all build icon app run dmg build-mas bump version clean screenshot test dist dist-manifest
 
 all: app
 
 build:
-	swift build -c release
+	swift build -c release $(SWIFT_FLAGS)
 
 icon: build
 	rm -rf $(ICONSET)
@@ -67,6 +84,7 @@ app: icon
 	cp $(BIN) $(BUNDLE)/Contents/MacOS/$(APP_NAME)
 	strip $(BUNDLE)/Contents/MacOS/$(APP_NAME)
 	cp Resources/Info.plist $(BUNDLE)/Contents/Info.plist
+	$(call add_showcase_plist_keys,$(BUNDLE)/Contents/Info.plist)
 	cp $(ICNS) $(BUNDLE)/Contents/Resources/AppIcon.icns
 	codesign --force --deep --sign "$(SIGN_ID)" --entitlements $(ENTITLEMENTS) $(BUNDLE)
 	@echo "Built $(BUNDLE) (signed: $(SIGN_ID))"
@@ -112,6 +130,7 @@ build-mas: icon
 	cp $(BIN) $(BUNDLE)/Contents/MacOS/$(APP_NAME)
 	strip $(BUNDLE)/Contents/MacOS/$(APP_NAME)
 	cp Resources/Info.plist $(BUNDLE)/Contents/Info.plist
+	$(call add_showcase_plist_keys,$(BUNDLE)/Contents/Info.plist)
 	cp $(ICNS) $(BUNDLE)/Contents/Resources/AppIcon.icns
 	cp Resources/PrivacyInfo.xcprivacy $(BUNDLE)/Contents/Resources/PrivacyInfo.xcprivacy
 	cp $(MAS_PROFILE) $(BUNDLE)/Contents/embedded.provisionprofile
@@ -161,6 +180,7 @@ dist: icon
 	cp $(BIN) $(BUNDLE)/Contents/MacOS/$(APP_NAME)
 	strip $(BUNDLE)/Contents/MacOS/$(APP_NAME)
 	cp Resources/Info.plist $(BUNDLE)/Contents/Info.plist
+	$(call add_showcase_plist_keys,$(BUNDLE)/Contents/Info.plist)
 	cp $(ICNS) $(BUNDLE)/Contents/Resources/AppIcon.icns
 	cp Resources/PrivacyInfo.xcprivacy $(BUNDLE)/Contents/Resources/PrivacyInfo.xcprivacy
 	xattr -cr $(BUNDLE)

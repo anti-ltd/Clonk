@@ -1225,6 +1225,10 @@ struct SettingsWindowView: View {
         // SwiftUI's brief auto-open at launch — `AppDelegate` closes the
         // window right after, but the captured action stays valid.
         .background(ClonkWindowOpenerBridge())
+        #if CLONK_SHOWCASE
+        // Reel showcase — installs the reel window opener (see Showcase/).
+        .background(ClonkReelWindowOpenerBridge())
+        #endif
     }
 }
 
