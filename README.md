@@ -31,6 +31,14 @@
 
 ---
 
+## Get the compiled binary
+
+A signed, notarized build is available for purchase at **[anti.ltd/clonk](https://anti.ltd/clonk)**.
+
+Use discount code **`READTHESOURCE`** at checkout for a discount — because you found the source.
+
+---
+
 ## Screenshots
 
 <div align="center">
