@@ -35,9 +35,65 @@ struct ClonkApp: App {
         .windowToolbarStyle(.unified)
 
         #if CLONK_SHOWCASE
-        // Reel showcase — only in `--showcase` builds. See Sources/ClonkCore/Showcase.
+        // Showcases — only in `--showcase` builds. See Sources/ClonkCore/Showcase.
         Window("Clonk Reel", id: "clonk-reel") {
             ReelSceneView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+
+        Window("Sound Check", id: "clonk-soundcheck") {
+            SoundCheckView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+
+        Window("Switch Tier-List", id: "clonk-tierlist") {
+            TierListView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+
+        Window("Feature Flex", id: "clonk-featureflex") {
+            FeatureFlexView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+
+        Window("Oddly Satisfying", id: "clonk-loop") {
+            SatisfyingLoopView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+
+        Window("Piano Mode", id: "clonk-piano") {
+            PianoModeView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+
+        Window("Guitar Mode", id: "clonk-guitar") {
+            GuitarModeView()
+                .onAppear  { NSApp.setActivationPolicy(.regular) }
+                .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        }
+        .defaultSize(width: 360, height: 722)
+        .windowResizability(.contentSize)
+
+        Window("Piano × Guitar", id: "clonk-duet") {
+            DuetView()
                 .onAppear  { NSApp.setActivationPolicy(.regular) }
                 .onDisappear { NSApp.setActivationPolicy(.accessory) }
         }
@@ -101,7 +157,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // from the scene id). A blanket close would also kill the status
         // item's backing window and the menu bar would stop responding.
         #if CLONK_SHOWCASE
-        let idsToClose = [ClonkModule.windowID, "clonk-reel"]
+        let idsToClose = [ClonkModule.windowID, "clonk-reel", "clonk-soundcheck",
+                          "clonk-tierlist", "clonk-featureflex", "clonk-loop",
+                          "clonk-piano", "clonk-guitar", "clonk-duet"]
         #else
         let idsToClose = [ClonkModule.windowID]
         #endif
@@ -122,12 +180,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             $0.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
         })
         #if CLONK_SHOWCASE
-        // Reel showcase — only in `--showcase` builds.
+        // Showcases — only in `--showcase` builds.
         menu.addItem(NSMenuItem(
             title: "Reel Showcase", action: #selector(menuReel), keyEquivalent: ""
         ).then {
             $0.target = self
             $0.image = NSImage(systemSymbolName: "video.fill", accessibilityDescription: nil)
+        })
+        menu.addItem(NSMenuItem(
+            title: "Sound Check", action: #selector(menuSoundCheck), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: nil)
+        })
+        menu.addItem(NSMenuItem(
+            title: "Switch Tier-List", action: #selector(menuTierList), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "list.number", accessibilityDescription: nil)
+        })
+        menu.addItem(NSMenuItem(
+            title: "Feature Flex", action: #selector(menuFeatureFlex), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)
+        })
+        menu.addItem(NSMenuItem(
+            title: "Oddly Satisfying", action: #selector(menuLoop), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)
+        })
+        menu.addItem(NSMenuItem(
+            title: "Piano Mode", action: #selector(menuPiano), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "pianokeys", accessibilityDescription: nil)
+        })
+        menu.addItem(NSMenuItem(
+            title: "Guitar Mode", action: #selector(menuGuitar), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "guitars.fill", accessibilityDescription: nil)
+        })
+        menu.addItem(NSMenuItem(
+            title: "Piano × Guitar", action: #selector(menuDuet), keyEquivalent: ""
+        ).then {
+            $0.target = self
+            $0.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: nil)
         })
         #endif
         menu.addItem(.separator())
@@ -146,7 +246,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     #if CLONK_SHOWCASE
     @objc private func menuReel() {
-        ClonkReelWindowOpener.open()
+        ShowcaseWindows.open("clonk-reel")
+    }
+
+    @objc private func menuSoundCheck() {
+        ShowcaseWindows.open("clonk-soundcheck")
+    }
+
+    @objc private func menuTierList() {
+        ShowcaseWindows.open("clonk-tierlist")
+    }
+
+    @objc private func menuFeatureFlex() {
+        ShowcaseWindows.open("clonk-featureflex")
+    }
+
+    @objc private func menuLoop() {
+        ShowcaseWindows.open("clonk-loop")
+    }
+
+    @objc private func menuPiano() {
+        ShowcaseWindows.open("clonk-piano")
+    }
+
+    @objc private func menuGuitar() {
+        ShowcaseWindows.open("clonk-guitar")
+    }
+
+    @objc private func menuDuet() {
+        ShowcaseWindows.open("clonk-duet")
     }
     #endif
 

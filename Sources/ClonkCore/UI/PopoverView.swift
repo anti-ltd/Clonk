@@ -1226,8 +1226,8 @@ struct SettingsWindowView: View {
         // window right after, but the captured action stays valid.
         .background(ClonkWindowOpenerBridge())
         #if CLONK_SHOWCASE
-        // Reel showcase — installs the reel window opener (see Showcase/).
-        .background(ClonkReelWindowOpenerBridge())
+        // Showcases — installs the shared window-opener bridge (see Showcase/).
+        .background(ShowcaseWindowOpenerBridge())
         #endif
     }
 }

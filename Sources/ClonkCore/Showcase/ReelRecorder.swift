@@ -14,8 +14,18 @@ import AVFoundation
 import ScreenCaptureKit
 import SwiftUI
 
+// Minimal surface the recorder needs from a showcase director, so one recorder
+// can capture any showcase scene (the reel, the sound check, future ones).
+protocol ReelDirecting: AnyObject {
+    var cycleLength: Double { get }
+    func start()
+}
+
+extension ReelDirector: ReelDirecting {}
+
 final class ReelRecorder: @unchecked Sendable {
-    private let director: ReelDirector
+    private let director: any ReelDirecting
+    private let makeRootView: @MainActor () -> AnyView
     private let lock = NSLock()                  // guards writer / inputs
     private var captureWindow: NSWindow?
     private var stream: SCStream?
@@ -27,8 +37,10 @@ final class ReelRecorder: @unchecked Sendable {
     private let sinkQueue = DispatchQueue(label: "ltd.anti.clonk.reel.sink", qos: .userInitiated)
     private var sessionStarted = false   // protected by lock
 
-    init(director: ReelDirector) {
+    init(director: any ReelDirecting,
+         makeRootView: @escaping @MainActor () -> AnyView) {
         self.director = director
+        self.makeRootView = makeRootView
     }
 
     func start() async {
@@ -36,7 +48,7 @@ final class ReelRecorder: @unchecked Sendable {
         // window and its windowNumber inside MainActor.run (windowNumber
         // is main-actor isolated).
         let (win, windowNumber) = await MainActor.run { () -> (NSWindow, Int) in
-            let w = Self.makeCaptureWindow(director: director)
+            let w = self.makeCaptureWindow()
             return (w, w.windowNumber)
         }
         captureWindow = win
@@ -194,7 +206,7 @@ final class ReelRecorder: @unchecked Sendable {
 
     // The hidden 1080×1920 NSWindow that hosts the bound scene for capture.
     @MainActor
-    private static func makeCaptureWindow(director: ReelDirector) -> NSWindow {
+    private func makeCaptureWindow() -> NSWindow {
         let win = NSWindow(
             contentRect: NSRect(x: 50_000, y: 0, width: 1080, height: 1920),
             styleMask: [.borderless],
@@ -206,7 +218,7 @@ final class ReelRecorder: @unchecked Sendable {
         win.backgroundColor = .black
 
         let host = NSHostingView(
-            rootView: ReelSceneViewBound(director: director)
+            rootView: makeRootView()
                 .frame(width: 360, height: 640)
                 .scaleEffect(3.0, anchor: .topLeading)
                 .frame(width: 1080, height: 1920, alignment: .topLeading)

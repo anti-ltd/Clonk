@@ -53,6 +53,15 @@ final class ReelAudio: @unchecked Sendable {
         try? engine.start()
     }
 
+    // Pre-render extra theme banks on demand. Additive and idempotent — used
+    // by showcases (e.g. Sound Check) that feature switches beyond the reel's
+    // three. Safe to call from any non-isolated context.
+    func prepareThemes(_ ids: [String]) {
+        for id in ids where banks[id] == nil {
+            banks[id] = ThemeBank.build(from: Theme.builtIn(id: id))
+        }
+    }
+
     func play(themeId: String, down: Bool, bigKey: Bool) {
         guard let bank = banks[themeId] else { return }
         if !down && !bank.hasRelease { return }
@@ -83,6 +92,25 @@ final class ReelAudio: @unchecked Sendable {
 
     func playPiano(midi: Int) {
         guard let buffer = pianoNotes[midi] else { return }
+        lock.lock()
+        let player = players[nextPlayer]
+        nextPlayer = (nextPlayer + 1) % voiceCount
+        lock.unlock()
+        player.scheduleBuffer(buffer, at: nil, options: .interrupts, completionHandler: nil)
+        if !player.isPlaying { player.play() }
+    }
+
+    // MARK: Guitar — Karplus-Strong plucks (showcase-only, see GuitarSynth).
+    private var guitarNotes: [Int: AVAudioPCMBuffer] = [:]
+
+    func prepareGuitar(_ midis: [Int]) {
+        for m in Set(midis) where guitarNotes[m] == nil {
+            guitarNotes[m] = GuitarSynth.render(midi: m, sustain: 1.2)
+        }
+    }
+
+    func playGuitar(midi: Int) {
+        guard let buffer = guitarNotes[midi] else { return }
         lock.lock()
         let player = players[nextPlayer]
         nextPlayer = (nextPlayer + 1) % voiceCount
@@ -723,7 +751,9 @@ final class ReelHolder: @unchecked Sendable {
             director.stop()
             director.start()
             isPlaying = true
-            let rec = ReelRecorder(director: director)
+            let d = director
+            let rec = ReelRecorder(director: d,
+                                   makeRootView: { AnyView(ReelSceneViewBound(director: d)) })
             recorder = rec
             isRecording = true
             Task { await rec.start() }
